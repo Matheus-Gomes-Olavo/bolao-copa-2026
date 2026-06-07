@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0d1117">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>⚽ Bolão Copa 2026</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --card2: #1c2230;
+      --border: #30363d;
+      --green: #2ea043;
+      --green-light: #3fb950;
+      --yellow: #f0c040;
+      --blue: #388bfd;
+      --red: #f85149;
+      --text: #e6edf3;
+      --muted: #7d8590;
+      --gold: #ffd700;
+      --silver: #c0c0c0;
+      --bronze: #cd7f32;
+      --brazil-green: #009c3b;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: linear-gradient(135deg, #002776 0%, #009c3b 100%);
+      padding: 14px 16px 12px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .header h1 { font-size: 18px; font-weight: 800; letter-spacing: 0.3px; }
+    .header .subtitle { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 58px;
+      z-index: 199;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 11px 0 9px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .tab-btn.active { color: var(--green-light); border-bottom-color: var(--green-light); }
+
+    /* ── CONTENT ── */
+    .tab-content { display: none; padding: 12px; padding-bottom: 76px; }
+    .tab-content.active { display: block; }
+
+    /* ── LOADING ── */
+    .loading-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 64px 20px; gap: 14px; color: var(--muted);
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--green-light);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── SUMMARY CARDS ── */
+    .summary-row {
+      display: flex; gap: 8px; margin-bottom: 12px;
+    }
+    .summary-card {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 8px; text-align: center;
+    }
+    .summary-card .val { font-size: 24px; font-weight: 800; color: var(--green-light); }
+    .summary-card .lbl { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* ── RANKING ── */
+    .rank-item {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 11px 12px; margin-bottom: 7px;
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      text-decoration: none; color: inherit;
+    }
+    .rank-item:active { background: var(--card2); border-color: var(--green-light); }
+    .rank-pos { width: 30px; text-align: center; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+    .pos-1 { color: var(--gold); }
+    .pos-2 { color: var(--silver); }
+    .pos-3 { color: var(--bronze); }
+    .pos-n { color: var(--muted); font-size: 13px; }
+
+    .rank-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 13px; flex-shrink: 0; color: #fff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    }
+    .rank-info { flex: 1; min-width: 0; }
+    .rank-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rank-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .rank-pts-wrap { text-align: right; flex-shrink: 0; }
+    .rank-pts { font-size: 26px; font-weight: 800; color: var(--yellow); line-height: 1; }
+    .rank-pts-lbl { font-size: 10px; color: var(--muted); }
+
+    /* ── SECTION LABEL ── */
+    .section-label {
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin: 14px 0 6px 4px;
+    }
+
+    /* ── GAME CARDS ── */
+    .group-filter {
+      display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+    }
+    .filter-btn {
+      padding: 5px 11px; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--card);
+      color: var(--muted); font-size: 12px; cursor: pointer; transition: all 0.15s;
+    }
+    .filter-btn.active { background: var(--green); border-color: var(--green); color: #fff; font-weight: 600; }
+
+    .game-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 11px 12px; margin-bottom: 7px;
+    }
+    .game-meta {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+    }
+    .badge {
+      font-size: 11px; padding: 2px 8px; border-radius: 20px;
+      background: rgba(255,255,255,0.07); color: var(--muted);
+    }
+    .badge.brazil {
+      background: rgba(0,156,59,0.15); border: 1px solid rgba(0,156,59,0.35);
+      color: #3fb950;
+    }
+    .badge.played {
+      background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.3);
+      color: var(--green-light);
+    }
+    .game-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .game-team { flex: 1; font-weight: 600; font-size: 14px; }
+    .game-team.right { text-align: right; }
+    .game-score-box {
+      border-radius: 7px; padding: 5px 12px;
+      font-weight: 800; font-size: 17px; min-width: 66px; text-align: center;
+    }
+    .game-score-box.played { background: rgba(240,192,64,0.15); color: var(--yellow); border: 1px solid rgba(240,192,64,0.3); }
+    .game-score-box.pending { background: var(--card2); color: var(--muted); font-size: 13px; border: 1px dashed var(--border); }
+
+    .game-footer {
+      margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .game-stat {
+      font-size: 11px; padding: 2px 8px; border-radius: 20px;
+      background: rgba(255,255,255,0.05); color: var(--muted);
+    }
+
+    /* ── DETALHES ── */
+    .select-input {
+      width: 100%; padding: 10px 12px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 14px;
+      margin-bottom: 12px; -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%237d8590' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    .p-header {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; margin-bottom: 12px; text-align: center;
+    }
+    .p-avatar-lg {
+      width: 56px; height: 56px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 20px; margin: 0 auto 8px; color: #fff;
+    }
+    .p-name { font-weight: 700; font-size: 16px; }
+    .p-big-score { font-size: 52px; font-weight: 900; color: var(--yellow); line-height: 1.1; }
+    .p-pos { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .p-stats {
+      display: flex; gap: 6px; margin-top: 14px;
+    }
+    .p-stat {
+      flex: 1; text-align: center; background: rgba(255,255,255,0.05);
+      border-radius: 8px; padding: 8px 4px;
+    }
+    .p-stat .val { font-size: 20px; font-weight: 800; }
+    .p-stat .lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    /* ── PREDICTION CARDS ── */
+    .pred-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-left: 3px solid var(--border);
+      border-radius: 8px; padding: 9px 11px; margin-bottom: 6px;
+    }
+    .pred-card.r1 { border-left-color: var(--gold); }
+    .pred-card.r2 { border-left-color: var(--green-light); }
+    .pred-card.r3 { border-left-color: var(--blue); }
+    .pred-card.r0 { border-left-color: var(--red); }
+    .pred-card.pending { border-left-color: var(--border); opacity: 0.65; }
+
+    .pred-top {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 6px; font-size: 11px; color: var(--muted);
+    }
+    .pred-pts {
+      font-weight: 700; font-size: 12px;
+    }
+    .pts-gold { color: var(--gold); }
+    .pts-green { color: var(--green-light); }
+    .pts-blue { color: var(--blue); }
+    .pts-red { color: var(--red); }
+    .pts-muted { color: var(--muted); }
+
+    .pred-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pred-team { flex: 1; font-size: 12px; font-weight: 600; }
+    .pred-team.right { text-align: right; }
+    .pred-scores-box { text-align: center; min-width: 80px; }
+    .pred-score-main { font-size: 14px; font-weight: 800; }
+    .pred-score-real { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+    /* ── EMPTY / ERROR ── */
+    .empty-state {
+      text-align: center; padding: 40px 20px; color: var(--muted);
+    }
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+    .error-box {
+      background: rgba(248,81,73,0.1); border: 1px solid var(--red);
+      border-radius: 8px; padding: 12px 14px; color: var(--red); font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    /* ── REFRESH FAB ── */
+    .fab {
+      position: fixed; bottom: 18px; right: 14px;
+      background: var(--green); color: #fff; border: none;
+      border-radius: 50%; width: 46px; height: 46px; font-size: 20px;
+      cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      z-index: 300; display: flex; align-items: center; justify-content: center;
+      transition: transform 0.15s, background 0.15s;
+    }
+    .fab:active { transform: scale(0.92); background: #27893a; }
+    .fab.spinning svg { animation: spin 0.7s linear infinite; }
+
+    /* ── NO DATA BANNER ── */
+    .no-data-banner {
+      background: rgba(240,192,64,0.08); border: 1px solid rgba(240,192,64,0.25);
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;
+      font-size: 13px; color: rgba(240,192,64,0.85); text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚽ Bolão Copa do Mundo 2026</h1>
+  <p class="subtitle" id="subtitle-text">Carregando dados...</p>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="ranking" onclick="showTab('ranking')">🏆 Ranking</button>
+  <button class="tab-btn" data-tab="jogos" onclick="showTab('jogos')">⚽ Jogos</button>
+  <button class="tab-btn" data-tab="detalhes" onclick="showTab('detalhes')">👤 Detalhes</button>
+</div>
+
+<!-- RANKING -->
+<div id="tab-ranking" class="tab-content active">
+  <div class="loading-state" id="loading-indicator">
+    <div class="spinner"></div>
+    <span>Buscando placar...</span>
+  </div>
+  <div id="ranking-content" style="display:none"></div>
+</div>
+
+<!-- JOGOS -->
+<div id="tab-jogos" class="tab-content">
+  <div id="jogos-content"></div>
+</div>
+
+<!-- DETALHES -->
+<div id="tab-detalhes" class="tab-content">
+  <div id="detalhes-content"></div>
+</div>
+
+<!-- FAB refresh -->
+<button class="fab" id="fab-btn" onclick="loadData()" title="Atualizar">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="23 4 23 10 17 10"></polyline>
+    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+  </svg>
+</button>
+
+<script>
+// ============================================================
+// CONFIGURAÇÃO — adicione IDs das planilhas aqui
+// ============================================================
+const GABARITO_ID = '11CdLKOo2rTw5TGsuoEmAGVy72zN84IdEovXrAx4M5ho';
+
+const PARTICIPANTS_CONFIG = [
+  { id: '11dLdkH4cnuzUpFqFwZHYhl7_SeWpIdKv-SVdptLYwv8', name: 'Matheus e Fabiane' },
+  // Adicione os demais participantes abaixo:
+  // { id: 'ID_DA_PLANILHA', name: 'Nome do Participante' },
+];
+
+const AVATAR_COLORS = [
+  '#2ea043','#1f6feb','#d29922','#da3633','#8250df',
+  '#0969da','#e85d04','#2d6a4f','#9b2226','#264653',
+  '#f4a261','#457b9d','#1d3557','#6a994e','#bc6c25',
+  '#7400b8','#023e8a','#b5179e','#4a4e69','#588157',
+  '#a7c957',
+];
+
+// ============================================================
+// ESTRUTURA DAS PLANILHAS
+// ============================================================
+const BLOCK_CONFIGS = [
+  { groups: ['A','B','C','D'], rowStart: 3  },
+  { groups: ['E','F','G','H'], rowStart: 13 },
+  { groups: ['I','J','K','L'], rowStart: 23 },
+];
+const GROUP_COLS = [2, 9, 16, 23];
+
+// ============================================================
+// FETCH VIA GOOGLE APPS SCRIPT (sem CORS, funciona de qualquer origem)
+// ============================================================
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx8NcGf9zZuLpKs2971LSf9RP8ZdN120zR32IfgavLFWqFfF1WsPyM-ILum6pLS3AJZ/exec';
+
+// ============================================================
+// EXTRAÇÃO DE JOGOS
+// ============================================================
+function extractGames(rows) {
+  const games = [];
+  for (const block of BLOCK_CONFIGS) {
+    for (let gi = 0; gi < 4; gi++) {
+      const group = block.groups[gi];
+      const gc = GROUP_COLS[gi];
+      for (let round = 0; round < 3; round++) {
+        for (let gIdx = 0; gIdx < 2; gIdx++) {
+          // Cada rodada ocupa 3 linhas: jogo1, jogo2, vazia
+          const rowIdx = block.rowStart + 1 + round * 3 + gIdx;
+          const row = rows[rowIdx] || [];
+          const teamA = (row[gc+1] || '').trim();
+          const teamB = (row[gc+4] || '').trim();
+          if (!teamA || !teamB) continue;
+          const s1 = (row[gc+2] || '').trim();
+          const s2 = (row[gc+3] || '').trim();
+          const scoreA = s1 !== '' && !isNaN(+s1) ? +s1 : null;
+          const scoreB = s2 !== '' && !isNaN(+s2) ? +s2 : null;
+          games.push({
+            id: `${group}-R${round+1}-G${gIdx+1}`,
+            group, round: round+1, gIdx,
+            teamA, teamB, scoreA, scoreB,
+            played: scoreA !== null && scoreB !== null,
+            isBrazil: teamA === 'Brasil' || teamB === 'Brasil',
+          });
+        }
+      }
+    }
+  }
+  return games;
+}
+
+// ============================================================
+// PONTUAÇÃO
+// ============================================================
+function resultado(a, b) { return a > b ? 'A' : b > a ? 'B' : 'D'; }
+
+function calcPontos(pA, pB, rA, rB, isBrazil, isFinal = false) {
+  if (pA === null || pB === null) return { pts: 0, base: 0, rule: 0, mult: 1 };
+  let base = 0, rule = 0;
+  if (pA === rA && pB === rB)                          { base = 10; rule = 1; }
+  else if (resultado(pA,pB) === resultado(rA,rB))      { base = 6;  rule = 2; }
+  else if (pA === rA || pB === rB)                     { base = 2;  rule = 3; }
+  let mult = 1;
+  if (isBrazil) mult *= 2;
+  if (isFinal)  mult *= 2;
+  return { pts: base * mult, base, rule, mult };
+}
+
+function pontuarParticipante(gabGames, predGames) {
+  let total = 0, brazilPts = 0, r1 = 0, r2 = 0, r3 = 0;
+  const details = [];
+  for (let i = 0; i < gabGames.length; i++) {
+    const real = gabGames[i];
+    const pred = predGames[i] || real;
+    if (!real.played) {
+      details.push({ real, pred, pts: null, rule: null, mult: 1 });
+      continue;
+    }
+    const res = calcPontos(pred.scoreA, pred.scoreB, real.scoreA, real.scoreB, real.isBrazil);
+    if (res.rule === 1) r1++;
+    else if (res.rule === 2) r2++;
+    else if (res.rule === 3) r3++;
+    if (real.isBrazil) brazilPts += res.pts;
+    total += res.pts;
+    details.push({ real, pred, ...res });
+  }
+  return { total, brazilPts, r1, r2, r3, details };
+}
+
+// ============================================================
+// FETCH via JSONP → GAS (sem CORS, funciona de file:// e https://)
+// ============================================================
+function fetchSheet(id) {
+  return new Promise((resolve, reject) => {
+    const cbName = '__gasCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const url = `${GAS_URL}?id=${encodeURIComponent(id)}&sheet=${encodeURIComponent('Fase de Grupos')}&callback=${cbName}`;
+
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      if (script.parentNode) script.remove();
+      reject(new Error('Timeout — verifique a URL do Apps Script'));
+    }, 20000);
+
+    window[cbName] = (data) => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.remove();
+      if (data && data.error) return reject(new Error(data.error));
+      resolve(data); // array 2D de strings
+    };
+
+    const script = document.createElement('script');
+    script.src = url;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.remove();
+      reject(new Error('Falha ao carregar o Apps Script'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let state = null;
+
+async function loadData() {
+  const fab = document.getElementById('fab-btn');
+  fab.classList.add('spinning');
+  document.getElementById('loading-indicator').style.display = 'flex';
+  document.getElementById('ranking-content').style.display = 'none';
+
+  try {
+    const [gabRows, ...allPartRows] = await Promise.all([
+      fetchSheet(GABARITO_ID),
+      ...PARTICIPANTS_CONFIG.map(p => fetchSheet(p.id).catch(() => null)),
+    ]);
+
+    const gabGames = extractGames(gabRows);
+    const playedCount = gabGames.filter(g => g.played).length;
+
+    const participants = PARTICIPANTS_CONFIG.map((cfg, i) => {
+      const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
+      if (!allPartRows[i]) {
+        return { ...cfg, color, total: 0, brazilPts: 0, r1: 0, r2: 0, r3: 0, details: [], error: true };
+      }
+      const predGames = extractGames(allPartRows[i]);
+      const score = pontuarParticipante(gabGames, predGames);
+      return { ...cfg, color, ...score };
+    });
+
+    // Sort por critérios de desempate
+    participants.sort((a, b) => {
+      if (b.total !== a.total) return b.total - a.total;
+      if (b.r1 !== a.r1) return b.r1 - a.r1;
+      if (b.r2 !== a.r2) return b.r2 - a.r2;
+      if (b.r3 !== a.r3) return b.r3 - a.r3;
+      return b.brazilPts - a.brazilPts;
+    });
+
+    state = { gabGames, participants, playedCount, total: gabGames.length };
+
+    renderRanking();
+    renderJogos(activeFilter);
+    renderDetalhes();
+
+    const now = new Date();
+    const hm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    document.getElementById('subtitle-text').textContent = `Atualizado às ${hm} · Fase de Grupos`;
+
+  } catch (err) { // eslint-disable-line
+    document.getElementById('loading-indicator').style.display = 'none';
+    document.getElementById('ranking-content').style.display = 'block';
+    document.getElementById('ranking-content').innerHTML =
+      `<div class="error-box">⚠️ Erro ao carregar dados: ${err.message}<br><br>
+       <small>Possíveis causas:<br>
+       • A planilha não está pública ("Qualquer pessoa com o link")<br>
+       • Nome da aba não corresponde a "Fase de Grupos"<br>
+       • Problema de conexão</small></div>`;
+    fab.classList.remove('spinning');
+    return;
+  }
+
+  document.getElementById('loading-indicator').style.display = 'none';
+  document.getElementById('ranking-content').style.display = 'block';
+  fab.classList.remove('spinning');
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function getInitials(name) {
+  const parts = name.split(/\s+e\s+|&|\s+/);
+  return parts.slice(0,2).map(p => (p[0]||'').toUpperCase()).join('');
+}
+
+function posLabel(i) {
+  if (i === 0) return '<span class="pos-1">🥇</span>';
+  if (i === 1) return '<span class="pos-2">🥈</span>';
+  if (i === 2) return '<span class="pos-3">🥉</span>';
+  return `<span class="pos-n">${i+1}º</span>`;
+}
+
+const ruleLabel = r => r === 1 ? '🎯 Exato' : r === 2 ? '✅ Resultado' : r === 3 ? '🔵 Parcial' : '❌ Errou';
+const ruleClass = r => r === 1 ? 'pts-gold' : r === 2 ? 'pts-green' : r === 3 ? 'pts-blue' : 'pts-red';
+
+// ============================================================
+// RENDER — RANKING
+// ============================================================
+function renderRanking() {
+  if (!state) return;
+  const { participants, playedCount, total } = state;
+  const remaining = total - playedCount;
+
+  let html = `
+    <div class="summary-row">
+      <div class="summary-card">
+        <div class="val">${playedCount}</div>
+        <div class="lbl">Jogos</div>
+      </div>
+      <div class="summary-card">
+        <div class="val">${remaining}</div>
+        <div class="lbl">Faltam</div>
+      </div>
+      <div class="summary-card">
+        <div class="val">${participants.length}</div>
+        <div class="lbl">Jogadores</div>
+      </div>
+    </div>
+  `;
+
+  if (playedCount === 0) {
+    html += `<div class="no-data-banner">⏳ Nenhum jogo disputado ainda. O placar será atualizado conforme os resultados forem inseridos na planilha.</div>`;
+  }
+
+  participants.forEach((p, i) => {
+    const sub = playedCount > 0
+      ? `🎯 ${p.r1} · ✅ ${p.r2} · 🔵 ${p.r3}`
+      : 'Aguardando jogos...';
+    html += `
+      <div class="rank-item" onclick="showParticipant('${p.id}')">
+        <div class="rank-pos">${posLabel(i)}</div>
+        <div class="rank-avatar" style="background:${p.color}">${getInitials(p.name)}</div>
+        <div class="rank-info">
+          <div class="rank-name">${p.name}</div>
+          <div class="rank-sub">${sub}</div>
+        </div>
+        <div class="rank-pts-wrap">
+          <div class="rank-pts">${p.total}</div>
+          <div class="rank-pts-lbl">pts</div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `<div style="text-align:center;font-size:11px;color:var(--muted);margin-top:8px">Toque em um participante para ver detalhes</div>`;
+  document.getElementById('ranking-content').innerHTML = html;
+}
+
+// ============================================================
+// RENDER — JOGOS
+// ============================================================
+let activeFilter = 'Todos';
+
+function renderJogos(filter = 'Todos') {
+  if (!state) return;
+  activeFilter = filter;
+  const { gabGames, participants } = state;
+  const groups = ['Todos','A','B','C','D','E','F','G','H','I','J','K','L'];
+  const filtered = filter === 'Todos' ? gabGames : gabGames.filter(g => g.group === filter);
+
+  let html = '<div class="group-filter">';
+  for (const g of groups) {
+    html += `<button class="filter-btn ${filter===g?'active':''}" onclick="renderJogos('${g}')">${g}</button>`;
+  }
+  html += '</div>';
+
+  if (!filtered.length) {
+    html += '<div class="empty-state"><div class="icon">⚽</div><p>Nenhum jogo encontrado</p></div>';
+  } else {
+    let lastGroup = null;
+    for (const game of filtered) {
+      if (filter === 'Todos' && game.group !== lastGroup) {
+        html += `<div class="section-label">Grupo ${game.group}</div>`;
+        lastGroup = game.group;
+      }
+
+      let exact=0, resultOk=0, partial=0, errou=0;
+      if (game.played) {
+        for (const p of participants) {
+          const det = p.details.find(d => d.real.id === game.id);
+          if (det && det.rule !== null) {
+            if (det.rule === 1) exact++;
+            else if (det.rule === 2) resultOk++;
+            else if (det.rule === 3) partial++;
+            else errou++;
+          }
+        }
+      }
+
+      const scoreBox = game.played
+        ? `<div class="game-score-box played">${game.scoreA} – ${game.scoreB}</div>`
+        : `<div class="game-score-box pending">vs</div>`;
+
+      html += `
+        <div class="game-card">
+          <div class="game-meta">
+            <span class="badge">Grupo ${game.group} · R${game.round}</span>
+            <span class="badge ${game.played ? 'played' : ''}">${game.played ? '✅ Encerrado' : '⏳ Aguardando'}${game.isBrazil ? ' · 🇧🇷 x2' : ''}</span>
+          </div>
+          <div class="game-row">
+            <span class="game-team">${game.teamA}</span>
+            ${scoreBox}
+            <span class="game-team right">${game.teamB}</span>
+          </div>
+          ${game.played && participants.length > 0 ? `
+            <div class="game-footer">
+              <span class="game-stat">🎯 Exatos: ${exact}</span>
+              <span class="game-stat">✅ Resultado: ${resultOk}</span>
+              <span class="game-stat">🔵 Parcial: ${partial}</span>
+              <span class="game-stat">❌ Errou: ${errou}</span>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+  }
+
+  document.getElementById('jogos-content').innerHTML = html;
+}
+
+// ============================================================
+// RENDER — DETALHES
+// ============================================================
+function renderDetalhes() {
+  if (!state) return;
+  const { participants } = state;
+
+  const opts = participants.map(p =>
+    `<option value="${p.id}">${p.name} — ${p.total} pts</option>`
+  ).join('');
+
+  document.getElementById('detalhes-content').innerHTML = `
+    <select class="select-input" onchange="renderParticipantDetail(this.value)">
+      <option value="">Selecione um participante...</option>
+      ${opts}
+    </select>
+    <div id="participant-detail"></div>
+  `;
+}
+
+function showParticipant(id) {
+  showTab('detalhes');
+  setTimeout(() => {
+    const sel = document.querySelector('.select-input');
+    if (sel) { sel.value = id; renderParticipantDetail(id); }
+  }, 50);
+}
+
+function renderParticipantDetail(id) {
+  if (!state || !id) return;
+  const p = state.participants.find(x => x.id === id);
+  if (!p) return;
+
+  const pos = state.participants.indexOf(p) + 1;
+  const scored = p.details.filter(d => d.pts !== null).length;
+
+  let html = `
+    <div class="p-header">
+      <div class="p-avatar-lg" style="background:${p.color}">${getInitials(p.name)}</div>
+      <div class="p-name">${p.name}</div>
+      <div class="p-big-score">${p.total}</div>
+      <div class="p-pos">${pos}º lugar · ${scored} jogos pontuados</div>
+      <div class="p-stats">
+        <div class="p-stat">
+          <div class="val" style="color:var(--gold)">${p.r1}</div>
+          <div class="lbl">🎯 Exatos</div>
+        </div>
+        <div class="p-stat">
+          <div class="val" style="color:var(--green-light)">${p.r2}</div>
+          <div class="lbl">✅ Result.</div>
+        </div>
+        <div class="p-stat">
+          <div class="val" style="color:var(--blue)">${p.r3}</div>
+          <div class="lbl">🔵 Parcial</div>
+        </div>
+        <div class="p-stat">
+          <div class="val" style="color:#3fb950">${p.brazilPts}</div>
+          <div class="lbl">🇧🇷 Brasil</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Agrupar por grupo
+  const byGroup = {};
+  for (const det of p.details) {
+    if (!byGroup[det.real.group]) byGroup[det.real.group] = [];
+    byGroup[det.real.group].push(det);
+  }
+
+  for (const [group, dets] of Object.entries(byGroup)) {
+    html += `<div class="section-label">Grupo ${group}</div>`;
+    for (const det of dets) {
+      const { real, pred } = det;
+      const cls = det.pts === null ? 'pending' : `r${det.rule}`;
+      const predStr = pred.scoreA !== null && pred.scoreB !== null ? `${pred.scoreA}–${pred.scoreB}` : '?–?';
+      const realStr = real.played ? `${real.scoreA}–${real.scoreB}` : 'em breve';
+
+      let ptsHtml = '';
+      if (det.pts === null) {
+        ptsHtml = `<span class="pred-pts pts-muted">⏳</span>`;
+      } else if (det.pts === 0) {
+        ptsHtml = `<span class="pred-pts pts-red">0 pts</span>`;
+      } else {
+        const mult = det.mult > 1 ? ` ×${det.mult}` : '';
+        ptsHtml = `<span class="pred-pts ${ruleClass(det.rule)}">+${det.pts} pts${mult}</span>`;
+      }
+
+      html += `
+        <div class="pred-card ${cls}">
+          <div class="pred-top">
+            <span>R${real.round}${real.isBrazil ? ' 🇧🇷' : ''} · ${real.teamA} vs ${real.teamB}</span>
+            ${ptsHtml}
+          </div>
+          <div class="pred-row">
+            <span class="pred-team">${real.teamA}</span>
+            <div class="pred-scores-box">
+              <div class="pred-score-main">${predStr}</div>
+              <div class="pred-score-real">${real.played ? `Real: ${realStr}` : 'aguardando'}</div>
+            </div>
+            <span class="pred-team right">${real.teamB}</span>
+          </div>
+          ${det.pts !== null && det.rule > 0 ? `<div style="font-size:10px;color:var(--muted);text-align:center;margin-top:5px">${ruleLabel(det.rule)}</div>` : ''}
+        </div>
+      `;
+    }
+  }
+
+  document.getElementById('participant-detail').innerHTML = html;
+}
+
+// ============================================================
+// NAVEGAÇÃO
+// ============================================================
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${id}`).classList.add('active');
+  document.querySelector(`.tab-btn[data-tab="${id}"]`).classList.add('active');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+loadData();
+</script>
+</body>
+</html>
