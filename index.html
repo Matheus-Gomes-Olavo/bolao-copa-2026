@@ -52,6 +52,8 @@
     }
 
     /* ── TEMA CLARO ── */
+    [data-theme="light"] .header { color: #ffffff; }
+
     [data-theme="light"] {
       --bg: #f6f8fa;
       --card: #ffffff;
@@ -253,6 +255,53 @@
     .game-stat {
       font-size: 11px; padding: 2px 8px; border-radius: 20px;
       background: rgba(255,255,255,0.05); color: var(--muted);
+    }
+
+    /* ── ANÁLISE ── */
+    .stats-section { margin-bottom: 18px; }
+    .stats-section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px;
+      padding-bottom: 4px; border-bottom: 1px solid var(--border);
+    }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; margin-bottom: 7px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .stat-card .stat-icon {
+      font-size: 22px; flex-shrink: 0; width: 36px; text-align: center;
+    }
+    .stat-card .stat-body { flex: 1; min-width: 0; }
+    .stat-card .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+    .stat-card .stat-value { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat-card .stat-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .stat-card .stat-badge {
+      font-size: 13px; font-weight: 800; color: var(--yellow);
+      flex-shrink: 0; text-align: right;
+    }
+    .stat-bar-wrap { margin-top: 4px; background: var(--border); border-radius: 4px; height: 5px; overflow: hidden; }
+    .stat-bar { height: 5px; border-radius: 4px; background: var(--green); transition: width 0.6s ease; }
+    .stat-row-list { display: flex; flex-direction: column; gap: 6px; }
+    .stat-row {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px;
+    }
+    .stat-row .sr-rank { font-size: 12px; color: var(--muted); width: 22px; flex-shrink: 0; text-align: center; }
+    .stat-row .sr-name { flex: 1; font-size: 13px; font-weight: 600; }
+    .stat-row .sr-val { font-size: 13px; font-weight: 700; color: var(--yellow); flex-shrink: 0; }
+    .stat-row .sr-sub { font-size: 11px; color: var(--muted); }
+    .unanimous-badge {
+      display: inline-block; padding: 3px 8px; border-radius: 12px;
+      font-size: 11px; font-weight: 600; background: rgba(0,212,74,0.12);
+      color: var(--green-light); border: 1px solid rgba(0,212,74,0.25);
+      margin: 2px 3px;
+    }
+    .no-data-stats {
+      text-align: center; color: var(--muted); font-size: 13px;
+      padding: 24px; background: var(--card); border-radius: 10px;
+      border: 1px solid var(--border);
     }
 
     /* ── DETALHES ── */
@@ -565,7 +614,8 @@
 <div class="tabs">
   <button class="tab-btn active" data-tab="ranking" onclick="showTab('ranking')">🏆 Ranking</button>
   <button class="tab-btn" data-tab="jogos" onclick="showTab('jogos')">⚽ Jogos</button>
-  <button class="tab-btn" data-tab="detalhes" onclick="showTab('detalhes')">👤 Detalhes</button>
+  <button class="tab-btn" data-tab="detalhes" onclick="showTab('detalhes')">👤 Participantes</button>
+  <button class="tab-btn" data-tab="stats" onclick="showTab('stats')">📊 Análise</button>
 </div>
 
 <!-- RANKING -->
@@ -587,6 +637,11 @@
   <div id="detalhes-content"></div>
 </div>
 
+<!-- ANÁLISE -->
+<div id="tab-stats" class="tab-content">
+  <div id="stats-content"></div>
+</div>
+
 <!-- FAB refresh -->
 <button class="fab" id="fab-btn" onclick="loadData()" title="Atualizar">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -602,10 +657,27 @@
 const GABARITO_ID = '11CdLKOo2rTw5TGsuoEmAGVy72zN84IdEovXrAx4M5ho';
 
 const PARTICIPANTS_CONFIG = [
-  { id: '11dLdkH4cnuzUpFqFwZHYhl7_SeWpIdKv-SVdptLYwv8', name: 'Matheus e Fabiane' },
-  { id: '1BVCFw-vhTK792kYJKWdGawRbq2oEdiEZxieNJDgCHhY', name: 'Gisele' },
-  // Adicione os demais participantes abaixo:
-  // { id: 'ID_DA_PLANILHA', name: 'Nome do Participante' },
+  { id: '11MSxpSR517SmuTxAqSjdZXa9txh_P3CuExHxXY8Wgf4', name: 'Zé Lucs' },
+  { id: '1S3SYoUsi1Eu6SQP7A3PysxB2Rxoa7_BUe3P0z6DY6N4', name: "Pedro O'Jones" },
+  { id: '1LcEvDI0ucHPow3Y4tnpANbvren5bIMZXoIlYxsQO1eQ', name: 'Lucao' },
+  { id: '1rn2XeUFEIrWnBiQ5m31f8Wl1GPw0pMigDb63O8PlDt4', name: 'Dedé' },
+  { id: '10ahYPMJN39DSnmQk8vxgN2nF8WbR-VZkoxFlgmMPp6E', name: 'Rafa' },
+  { id: '1zNPk_4ObCO8Ki0pTeR9J6ilKAyjSxKrtlysFduQQGEA', name: 'Boquinha' },
+  { id: '14rGPbMg28lPRZx6Bz2g4z6dFgf6sZ5s3S7jGb7Z_1o4', name: 'Namaria' },
+  { id: '1vEQrsP0eFxVJTD1xxmxwXBnw54xC7FxJ6wBVqR40BQw', name: 'Ramonela' },
+  { id: '1ogbX6_m9TP2cM2f3B36op95F892DUbjtM5orPs3egxY', name: 'Dedeia' },
+  { id: '1x-k4ArMOvXHAYDSx4YSal-MwzrAi9Mdy8ujbWB9PgAc', name: 'Gê' },
+  { id: '1_V05johZD6GXwxc8Jm8XvaGGBAByDoJ2Rm6rQ-MmswY', name: 'Filadelfios' },
+  { id: '1O0NybhMFtNM-YN3OaF32b4MCAuxetcf5SbNgUJOGy5U', name: 'MTaura' },
+  { id: '1AEPno3FQj4367hKuuTF6R8ricCdDDpT0RIAB6lzhGpo', name: 'Tonielso' },
+  { id: '1e8XxZ_6HhFli3fRTJLNg1sMrdyqUVQZzPqt8V0wt6V0', name: 'Dudani' },
+  { id: '1utDL0f18fn6V3emqCw6wo1tFuXXvsV1jPwkYnQYXOuE', name: 'Flavs' },
+  { id: '1ybzbOhoN4gEYd0N_EhlMvvYp-ZpkRwOKvkgzlGo76lE', name: 'Lalá' },
+  { id: '1BVCFw-vhTK792kYJKWdGawRbq2oEdiEZxieNJDgCHhY', name: 'Gisa' },
+  { id: '1ugsEidErf8gCAYZJl47GQ0pK63jBj_AcSGLKEkx7J9A', name: 'Naty' },
+  { id: '1BG8IjoAT9HEDzZQd4FNI3kMmnQ4QiCvBUK6ts4KJkdM', name: 'Thiagol' },
+  { id: '11dLdkH4cnuzUpFqFwZHYhl7_SeWpIdKv-SVdptLYwv8', name: 'Fateteuby' },
+  { id: '1hzDiNZ5o-vKKRZLYhXXZMJABaNqteUibwqnpqd2sG0E', name: 'Franciscangelus' },
 ];
 
 const AVATAR_COLORS = [
@@ -775,7 +847,8 @@ async function loadData() {
       if (b.r1 !== a.r1) return b.r1 - a.r1;
       if (b.r2 !== a.r2) return b.r2 - a.r2;
       if (b.r3 !== a.r3) return b.r3 - a.r3;
-      return b.brazilPts - a.brazilPts;
+      if (b.brazilPts !== a.brazilPts) return b.brazilPts - a.brazilPts;
+      return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
     });
 
     // Ranking anterior (para indicadores de variação)
@@ -787,6 +860,7 @@ async function loadData() {
     renderRanking();
     renderJogos(activeFilter);
     renderDetalhes();
+    renderStats();
 
     const now = new Date();
     const hm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -1077,6 +1151,285 @@ function renderParticipantDetail(id) {
 // ============================================================
 // NAVEGAÇÃO
 // ============================================================
+// ============================================================
+// RENDER — ANÁLISE
+// ============================================================
+function renderStats() {
+  if (!state) return;
+  const { participants, gabGames, playedCount } = state;
+
+  // Filtra só participantes sem erro
+  const valid = participants.filter(p => !p.error && p.details && p.details.length > 0);
+  const gameCount = gabGames.length;
+
+  if (valid.length === 0) {
+    document.getElementById('stats-content').innerHTML =
+      '<div class="no-data-stats">Nenhum dado disponível para análise.</div>';
+    return;
+  }
+
+  // ── 1. Time mais apostado para vencer ──────────────────────
+  const winVotes = {}; // teamName → count
+  valid.forEach(p => {
+    p.details.forEach(d => {
+      const { pred } = d;
+      if (pred.scoreA === null || pred.scoreB === null) return;
+      let winner = null;
+      if (pred.scoreA > pred.scoreB) winner = pred.teamA;
+      else if (pred.scoreB > pred.scoreA) winner = pred.teamB;
+      if (winner) winVotes[winner] = (winVotes[winner] || 0) + 1;
+    });
+  });
+  const winVotesSorted = Object.entries(winVotes).sort((a,b) => b[1]-a[1]).slice(0,5);
+  const maxWinVotes = winVotesSorted[0]?.[1] || 1;
+
+  // ── 2. Top 5 maiores goleadas apostadas ───────────────────
+  const allGoalDiffs = [];
+  valid.forEach(p => {
+    p.details.forEach(d => {
+      const { pred } = d;
+      if (pred.scoreA === null || pred.scoreB === null) return;
+      const diff = Math.abs(pred.scoreA - pred.scoreB);
+      if (diff === 0) return;
+      const winner = pred.scoreA > pred.scoreB ? pred.teamA : pred.teamB;
+      const loser  = pred.scoreA > pred.scoreB ? pred.teamB : pred.teamA;
+      const sa = pred.scoreA > pred.scoreB ? pred.scoreA : pred.scoreB;
+      const sb = pred.scoreA > pred.scoreB ? pred.scoreB : pred.scoreA;
+      allGoalDiffs.push({ diff, label: `${winner} ${sa}×${sb} ${loser}`, who: p.name });
+    });
+  });
+  const topGoalDiffs = allGoalDiffs.sort((a, b) => b.diff - a.diff).slice(0, 5);
+
+  // ── 3. Apostador mais goleador (mais gols apostados no total) ──
+  const totalGoalsPred = valid.map(p => {
+    let goals = 0;
+    p.details.forEach(d => {
+      if (d.pred.scoreA !== null) goals += d.pred.scoreA;
+      if (d.pred.scoreB !== null) goals += d.pred.scoreB;
+    });
+    return { name: p.name, color: p.color, goals };
+  }).sort((a,b) => b.goals - a.goals);
+
+  // ── 4. Apostador mais conservador (menos gols apostados) ──
+  const mostConservative = [...totalGoalsPred].sort((a,b) => a.goals - b.goals);
+
+  // ── 5. Placar mais apostado ────────────────────────────────
+  const scoreCounts = {};
+  valid.forEach(p => {
+    p.details.forEach(d => {
+      const { pred } = d;
+      if (pred.scoreA === null || pred.scoreB === null) return;
+      const key = `${Math.min(pred.scoreA,pred.scoreB)}-${Math.max(pred.scoreA,pred.scoreB)}`;
+      scoreCounts[key] = (scoreCounts[key] || 0) + 1;
+    });
+  });
+  const topScores = Object.entries(scoreCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
+
+  // ── 6. Jogos mais controversos (mais divisão de opiniões) ──
+  const gameControversy = gabGames.map(g => {
+    const votes = { A: 0, B: 0, D: 0 };
+    valid.forEach(p => {
+      const d = p.details.find(x => x.real.id === g.id);
+      if (!d || d.pred.scoreA === null || d.pred.scoreB === null) return;
+      const r = d.pred.scoreA > d.pred.scoreB ? 'A' : d.pred.scoreB > d.pred.scoreA ? 'B' : 'D';
+      votes[r]++;
+    });
+    const total = votes.A + votes.B + votes.D;
+    if (total === 0) return null;
+    // Entropia como medida de controversia: maior quando mais dividido
+    const entropy = ['A','B','D'].reduce((acc, k) => {
+      const p = votes[k] / total;
+      return p > 0 ? acc - p * Math.log2(p) : acc;
+    }, 0);
+    return { game: g, votes, total, entropy };
+  }).filter(Boolean).sort((a,b) => b.entropy - a.entropy).slice(0,3);
+
+  // ── 7. Jogos unânimes (todos apostaram no mesmo resultado) ──
+  const unanimousGames = gabGames.map(g => {
+    const votes = { A: 0, B: 0, D: 0 };
+    valid.forEach(p => {
+      const d = p.details.find(x => x.real.id === g.id);
+      if (!d || d.pred.scoreA === null || d.pred.scoreB === null) return;
+      const r = d.pred.scoreA > d.pred.scoreB ? 'A' : d.pred.scoreB > d.pred.scoreA ? 'B' : 'D';
+      votes[r]++;
+    });
+    const total = votes.A + votes.B + votes.D;
+    if (total < 2) return null;
+    const dominant = Math.max(votes.A, votes.B, votes.D);
+    if (dominant < total) return null; // não é unânime
+    const winner = votes.A === total ? g.teamA : votes.B === total ? g.teamB : 'Empate';
+    return { game: g, winner };
+  }).filter(Boolean);
+
+  // ── 8. Quem mais acertou placar exato (já jogados) ──
+  const exactRanking = valid.map(p => ({ name: p.name, color: p.color, r1: p.r1 }))
+    .sort((a,b) => b.r1 - a.r1).filter(p => p.r1 > 0).slice(0,5);
+
+  // ── 9. Brasil: maior apostador ────────────────────────────
+  const brazilRanking = valid.map(p => ({ name: p.name, color: p.color, pts: p.brazilPts }))
+    .sort((a,b) => b.pts - a.pts).filter(p => p.pts > 0).slice(0,5);
+
+  // ── Render ─────────────────────────────────────────────────
+  let html = '';
+
+  // Cabeçalho info
+  html += `<div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:14px">
+    Análise de ${valid.length} participante${valid.length>1?'s':''} · ${gameCount} jogos na fase de grupos
+    ${playedCount > 0 ? `· ${playedCount} já disputados` : ''}
+  </div>`;
+
+  // ── Maiores apostadores de vitórias por time ──
+  if (winVotesSorted.length > 0) {
+    html += `<div class="stats-section">
+      <div class="stats-section-title">🏅 Times mais apostados para vencer</div>
+      <div class="stat-row-list">`;
+    winVotesSorted.forEach(([team, count], i) => {
+      const pct = Math.round((count / (valid.length * gameCount)) * 100);
+      html += `<div class="stat-row">
+        <div class="sr-rank">${i+1}º</div>
+        <div class="sr-name">${team}</div>
+        <div style="flex:1;padding:0 8px">
+          <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(count/maxWinVotes*100)}%"></div></div>
+        </div>
+        <div class="sr-val">${count} apostas</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // ── Top 5 maiores goleadas apostadas ──
+  if (topGoalDiffs.length > 0) {
+    html += `<div class="stats-section">
+      <div class="stats-section-title">💥 Maiores goleadas apostadas</div>
+      <div class="stat-row-list">`;
+    topGoalDiffs.forEach((item, i) => {
+      html += `<div class="stat-row">
+        <div class="sr-rank">${i+1}º</div>
+        <div style="flex:1;min-width:0">
+          <div class="sr-name">${item.label}</div>
+          <div class="sr-sub">por ${item.who}</div>
+        </div>
+        <div class="sr-val">+${item.diff}</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // ── Placar mais popular ──
+  if (topScores.length > 0) {
+    html += `<div class="stats-section">
+      <div class="stats-section-title">📋 Placares mais apostados</div>
+      <div class="stat-row-list">`;
+    topScores.forEach(([score, count], i) => {
+      const [a, b] = score.split('-');
+      html += `<div class="stat-row">
+        <div class="sr-rank">${i+1}º</div>
+        <div class="sr-name">${a} × ${b}</div>
+        <div class="sr-val">${count}×</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // ── Apostadores goleadores ──
+  html += `<div class="stats-section">
+    <div class="stats-section-title">⚽ Quem apostou mais gols</div>
+    <div class="stat-row-list">`;
+  totalGoalsPred.slice(0,5).forEach((p, i) => {
+    html += `<div class="stat-row">
+      <div class="sr-rank">${i+1}º</div>
+      <div class="sr-name">${p.name}</div>
+      <div class="sr-val">${p.goals} gols</div>
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  // ── Mais conservador ──
+  if (mostConservative[0]) {
+    html += `<div class="stats-section">
+      <div class="stats-section-title">🛡️ Apostador mais conservador</div>
+      <div class="stat-card">
+        <div class="stat-icon">😴</div>
+        <div class="stat-body">
+          <div class="stat-label">Apostou menos gols no total</div>
+          <div class="stat-value">${mostConservative[0].name}</div>
+          <div class="stat-sub">${mostConservative[0].goals} gols apostados</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Acertos de placar exato ──
+  if (exactRanking.length > 0) {
+    html += `<div class="stats-section">
+      <div class="stats-section-title">🎯 Mais acertos de placar exato</div>
+      <div class="stat-row-list">`;
+    exactRanking.forEach((p, i) => {
+      html += `<div class="stat-row">
+        <div class="sr-rank">${posLabel(i)}</div>
+        <div class="sr-name">${p.name}</div>
+        <div class="sr-val">${p.r1} acerto${p.r1>1?'s':''}</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  } else if (playedCount === 0) {
+    html += `<div class="stats-section">
+      <div class="stats-section-title">🎯 Placares exatos</div>
+      <div class="no-data-stats">Aguardando os jogos começarem 🕐</div>
+    </div>`;
+  }
+
+  // ── Brasil ──
+  if (brazilRanking.length > 0) {
+    html += `<div class="stats-section">
+      <div class="stats-section-title">🇧🇷 Maiores pontuadores nos jogos do Brasil</div>
+      <div class="stat-row-list">`;
+    brazilRanking.forEach((p, i) => {
+      html += `<div class="stat-row">
+        <div class="sr-rank">${posLabel(i)}</div>
+        <div class="sr-name">${p.name}</div>
+        <div class="sr-val">${p.pts} pts</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // ── Jogos mais controversos ──
+  if (gameControversy.length > 0) {
+    html += `<div class="stats-section">
+      <div class="stats-section-title">🔥 Jogos mais controversos</div>
+      <div class="stat-row-list">`;
+    gameControversy.forEach((item, i) => {
+      const { game, votes, total } = item;
+      const pA = Math.round(votes.A/total*100);
+      const pB = Math.round(votes.B/total*100);
+      const pD = Math.round(votes.D/total*100);
+      html += `<div class="stat-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <div style="font-size:13px;font-weight:600">${game.teamA} × ${game.teamB}</div>
+        <div style="font-size:11px;color:var(--muted);display:flex;gap:10px">
+          <span>${game.teamA}: <strong style="color:var(--text)">${pA}%</strong></span>
+          <span>Empate: <strong style="color:var(--text)">${pD}%</strong></span>
+          <span>${game.teamB}: <strong style="color:var(--text)">${pB}%</strong></span>
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // ── Jogos unânimes ──
+  if (unanimousGames.length > 0) {
+    html += `<div class="stats-section">
+      <div class="stats-section-title">🤝 Apostas unânimes (todos concordaram)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding:4px 0">`;
+    unanimousGames.forEach(({ game, winner }) => {
+      html += `<span class="unanimous-badge">${game.teamA} × ${game.teamB} → ${winner}</span>`;
+    });
+    html += `</div></div>`;
+  }
+
+  document.getElementById('stats-content').innerHTML = html;
+}
+
 function showTab(id) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
