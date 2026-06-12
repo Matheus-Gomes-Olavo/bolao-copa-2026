@@ -343,8 +343,8 @@
       border-left: 3px solid var(--border);
       border-radius: 8px; padding: 9px 11px; margin-bottom: 6px;
     }
-    .pred-card.r1 { border-left-color: var(--gold); }
-    .pred-card.r2 { border-left-color: var(--green-light); }
+    .pred-card.r1 { border-left-color: var(--green-light); }
+    .pred-card.r2 { border-left-color: var(--gold); }
     .pred-card.r3 { border-left-color: var(--blue); }
     .pred-card.r0 { border-left-color: var(--red); }
     .pred-card.pending { border-left-color: var(--border); opacity: 0.65; }
@@ -381,6 +381,234 @@
     .pos-change.down { color: var(--red); }
     .pos-change.same { color: var(--muted); font-size: 16px; line-height: 1; }
     .pos-change.new  { color: var(--yellow); font-size: 10px; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,0.72);
+      display: flex; align-items: flex-end; justify-content: center;
+      animation: fadeOverlay 0.2s ease;
+    }
+    @keyframes fadeOverlay { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-sheet {
+      background: var(--card);
+      border-radius: 18px 18px 0 0;
+      width: 100%; max-width: 520px;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding-bottom: 28px;
+      animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .modal-handle {
+      width: 36px; height: 4px; background: var(--border);
+      border-radius: 2px; margin: 10px auto 0;
+    }
+    .modal-header {
+      padding: 12px 16px 10px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--card); z-index: 1;
+    }
+    .modal-badge-row {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    }
+    .modal-match {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal-team { flex: 1; font-size: 15px; font-weight: 700; }
+    .modal-team.right { text-align: right; }
+    .modal-score-box {
+      border-radius: 8px; padding: 6px 14px;
+      font-weight: 900; font-size: 20px; min-width: 72px; text-align: center;
+    }
+    .modal-score-box.played { background: rgba(240,192,64,0.15); color: var(--yellow); border: 1px solid rgba(240,192,64,0.3); }
+    .modal-score-box.pending { background: var(--card2); color: var(--muted); font-size: 14px; border: 1px dashed var(--border); }
+
+    .modal-body { padding: 14px 16px 0; }
+
+    .modal-section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--muted); margin-bottom: 10px;
+      padding-bottom: 4px; border-bottom: 1px solid var(--border);
+    }
+
+    /* Distribuição de votos */
+    .vote-bar-wrap {
+      background: var(--card2); border-radius: 8px; overflow: hidden;
+      height: 28px; display: flex; margin-bottom: 6px;
+    }
+    .vote-seg {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff;
+      transition: width 0.4s ease; overflow: hidden; white-space: nowrap;
+      min-width: 0;
+    }
+    .vote-seg.a   { background: var(--blue); }
+    .vote-seg.d   { background: var(--muted); }
+    .vote-seg.b   { background: var(--red); }
+    .vote-legend {
+      display: flex; gap: 12px; font-size: 11px; color: var(--muted); margin-bottom: 14px;
+    }
+    .vote-legend span { display: flex; align-items: center; gap: 4px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Lista de apostas */
+    .bet-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .bet-item {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--card2); border-radius: 8px;
+      padding: 8px 10px;
+      border-left: 3px solid var(--border);
+    }
+    .bet-item.r1 { border-left-color: var(--green-light); }
+    .bet-item.r2 { border-left-color: var(--gold); }
+    .bet-item.r3 { border-left-color: var(--blue); }
+    .bet-item.r0 { border-left-color: var(--red); }
+    .bet-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .bet-name { flex: 1; font-size: 13px; font-weight: 600; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bet-score {
+      font-size: 14px; font-weight: 800; flex-shrink: 0;
+      color: var(--text);
+    }
+    .bet-pts {
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+      min-width: 42px; text-align: right;
+    }
+    .bet-no-pred { font-size: 12px; color: var(--muted); font-style: italic; }
+
+    /* Mini-stats */
+    .mini-stats { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .mini-stat {
+      flex: 1; min-width: 80px;
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 8px; text-align: center;
+    }
+    .mini-stat .ms-val { font-size: 18px; font-weight: 800; color: var(--yellow); }
+    .mini-stat .ms-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    .game-card { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .game-card:active { background: var(--card2); border-color: var(--green-light); }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,0.72);
+      display: flex; align-items: flex-end; justify-content: center;
+      animation: fadeOverlay 0.2s ease;
+    }
+    @keyframes fadeOverlay { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-sheet {
+      background: var(--card);
+      border-radius: 18px 18px 0 0;
+      width: 100%; max-width: 520px;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding-bottom: 28px;
+      animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .modal-handle {
+      width: 36px; height: 4px; background: var(--border);
+      border-radius: 2px; margin: 10px auto 0;
+    }
+    .modal-header {
+      padding: 12px 16px 10px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--card); z-index: 1;
+    }
+    .modal-badge-row {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    }
+    .modal-match {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal-team { flex: 1; font-size: 15px; font-weight: 700; }
+    .modal-team.right { text-align: right; }
+    .modal-score-box {
+      border-radius: 8px; padding: 6px 14px;
+      font-weight: 900; font-size: 20px; min-width: 72px; text-align: center;
+    }
+    .modal-score-box.played { background: rgba(240,192,64,0.15); color: var(--yellow); border: 1px solid rgba(240,192,64,0.3); }
+    .modal-score-box.pending { background: var(--card2); color: var(--muted); font-size: 14px; border: 1px dashed var(--border); }
+
+    .modal-body { padding: 14px 16px 0; }
+    .modal-section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--muted); margin-bottom: 10px;
+      padding-bottom: 4px; border-bottom: 1px solid var(--border);
+    }
+
+    .vote-bar-wrap {
+      background: var(--card2); border-radius: 8px; overflow: hidden;
+      height: 28px; display: flex; margin-bottom: 6px;
+    }
+    .vote-seg {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff;
+      transition: width 0.4s ease, opacity 0.2s ease, filter 0.2s ease;
+      overflow: hidden; white-space: nowrap; min-width: 0;
+      cursor: pointer; user-select: none;
+    }
+    .vote-seg:active { filter: brightness(1.2); }
+    .vote-seg.a { background: var(--blue); }
+    .vote-seg.d { background: var(--muted); }
+    .vote-seg.b { background: var(--red); }
+    .vote-seg.dimmed { opacity: 0.25; }
+    .vote-filter-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      margin-bottom: 10px; cursor: pointer;
+    }
+    .vote-filter-chip.a { background: rgba(26,82,204,0.18); color: var(--blue); border: 1px solid var(--blue); }
+    .vote-filter-chip.d { background: rgba(125,133,144,0.18); color: var(--text); border: 1px solid var(--muted); }
+    .vote-filter-chip.b { background: rgba(255,85,85,0.18); color: var(--red); border: 1px solid var(--red); }
+    .vote-legend {
+      display: flex; gap: 12px; font-size: 11px; color: var(--muted); margin-bottom: 14px;
+    }
+    .vote-legend span { display: flex; align-items: center; gap: 4px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .bet-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .bet-item {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--card2); border-radius: 8px;
+      padding: 8px 10px;
+      border-left: 3px solid var(--border);
+    }
+    .bet-item.r1 { border-left-color: var(--gold); }
+    .bet-item.r2 { border-left-color: var(--green-light); }
+    .bet-item.r3 { border-left-color: var(--blue); }
+    .bet-item.r0 { border-left-color: var(--red); }
+    .bet-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .bet-name { flex: 1; font-size: 13px; font-weight: 600; min-width: 0;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bet-score { font-size: 14px; font-weight: 800; flex-shrink: 0; color: var(--text); }
+    .bet-pts { font-size: 11px; font-weight: 700; flex-shrink: 0; min-width: 42px; text-align: right; }
+
+    .mini-stats { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .mini-stat {
+      flex: 1; min-width: 80px;
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 8px; text-align: center;
+    }
+    .mini-stat .ms-val { font-size: 18px; font-weight: 800; color: var(--yellow); }
+    .mini-stat .ms-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    .game-card { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .game-card:active { background: var(--card2); border-color: var(--green-light); }
 
     /* ── EMPTY / ERROR ── */
     .empty-state {
@@ -642,6 +870,9 @@
   <div id="stats-content"></div>
 </div>
 
+<!-- MODAL -->
+<div id="game-modal" style="display:none"></div>
+
 <!-- FAB refresh -->
 <button class="fab" id="fab-btn" onclick="loadData()" title="Atualizar">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -900,7 +1131,7 @@ function posLabel(i) {
 }
 
 const ruleLabel = r => r === 1 ? '🎯 Exato' : r === 2 ? '✅ Resultado' : r === 3 ? '🔵 Parcial' : '❌ Errou';
-const ruleClass = r => r === 1 ? 'pts-gold' : r === 2 ? 'pts-green' : r === 3 ? 'pts-blue' : 'pts-red';
+const ruleClass = r => r === 1 ? 'pts-green' : r === 2 ? 'pts-gold' : r === 3 ? 'pts-blue' : 'pts-red';
 
 // ============================================================
 // RENDER — RANKING
@@ -1011,7 +1242,7 @@ function renderJogos(filter = 'Todos') {
         : `<div class="game-score-box pending">vs</div>`;
 
       html += `
-        <div class="game-card">
+        <div class="game-card" onclick="showGameModal('${game.id}')">
           <div class="game-meta">
             <span class="badge">Grupo ${game.group} · R${game.round}</span>
             <span class="badge ${game.played ? 'played' : ''}">${game.played ? '✅ Encerrado' : '⏳ Aguardando'}${game.isBrazil ? ' · 🇧🇷 x2' : ''}</span>
@@ -1029,6 +1260,7 @@ function renderJogos(filter = 'Todos') {
               <span class="game-stat">❌ Errou: ${errou}</span>
             </div>
           ` : ''}
+          <div style="text-align:right;font-size:10px;color:var(--muted);margin-top:6px">👆 ver apostas</div>
         </div>
       `;
     }
@@ -1081,11 +1313,11 @@ function renderParticipantDetail(id) {
       <div class="p-pos">${pos}º lugar · ${scored} jogos pontuados</div>
       <div class="p-stats">
         <div class="p-stat">
-          <div class="val" style="color:var(--gold)">${p.r1}</div>
+          <div class="val" style="color:var(--green-light)">${p.r1}</div>
           <div class="lbl">🎯 Exatos</div>
         </div>
         <div class="p-stat">
-          <div class="val" style="color:var(--green-light)">${p.r2}</div>
+          <div class="val" style="color:var(--gold)">${p.r2}</div>
           <div class="lbl">✅ Result.</div>
         </div>
         <div class="p-stat">
@@ -1428,6 +1660,240 @@ function renderStats() {
   }
 
   document.getElementById('stats-content').innerHTML = html;
+}
+
+// ============================================================
+// MODAL — APOSTAS DO JOGO
+// ============================================================
+function showGameModal(gameId) {
+  if (!state) return;
+  const game = state.gabGames.find(g => g.id === gameId);
+  if (!game) return;
+
+  // Coleta apostas de todos os participantes
+  const bets = state.participants.map(p => {
+    const det = p.details.find(d => d.real.id === gameId);
+    return { p, det };
+  });
+
+  // Estatísticas de votos
+  const votes = { A: 0, D: 0, B: 0 };
+  const scoreCounts = {};
+  let totalGoals = 0, totalBets = 0;
+
+  bets.forEach(({ det }) => {
+    if (!det || det.pred.scoreA === null || det.pred.scoreB === null) return;
+    const { scoreA, scoreB } = det.pred;
+    totalBets++;
+    totalGoals += scoreA + scoreB;
+    if (scoreA > scoreB) votes.A++;
+    else if (scoreB > scoreA) votes.B++;
+    else votes.D++;
+    const key = scoreA + '-' + scoreB;
+    scoreCounts[key] = (scoreCounts[key] || 0) + 1;
+  });
+
+  const topScore = Object.entries(scoreCounts).sort((a,b) => b[1]-a[1])[0];
+  const avgGoals = totalBets > 0 ? (totalGoals / totalBets).toFixed(1) : '—';
+
+  // Ordena igual ao ranking: pts desc, r1 desc, r2 desc, r3 desc, brazilPts desc, nome
+  bets.sort((a, b) => {
+    const pa = a.p, pb = b.p;
+    if (pb.total !== pa.total) return pb.total - pa.total;
+    if (pb.r1 !== pa.r1) return pb.r1 - pa.r1;
+    if (pb.r2 !== pa.r2) return pb.r2 - pa.r2;
+    if (pb.r3 !== pa.r3) return pb.r3 - pa.r3;
+    if (pb.brazilPts !== pa.brazilPts) return pb.brazilPts - pa.brazilPts;
+    return pa.name.localeCompare(pb.name, 'pt-BR', { sensitivity: 'base' });
+  });
+
+  // ── Header ──
+  const scoreBox = game.played
+    ? `<div class="modal-score-box played">${game.scoreA} – ${game.scoreB}</div>`
+    : `<div class="modal-score-box pending">vs</div>`;
+
+  const pctA = totalBets ? Math.round(votes.A / totalBets * 100) : 0;
+  const pctD = totalBets ? Math.round(votes.D / totalBets * 100) : 0;
+  const pctB = totalBets ? 100 - pctA - pctD : 0;
+
+  // Guarda bets e metadados para uso no filtro
+  window._modalBets = bets;
+  window._modalFilter = null;
+  window._modalTeamA = game.teamA;
+  window._modalTeamB = game.teamB;
+
+  // Constrói acertos se jogo jogado
+  let acertosHtml = '';
+  if (game.played) {
+    const r1 = bets.filter(b => b.det?.rule === 1).length;
+    const r2 = bets.filter(b => b.det?.rule === 2).length;
+    const r3 = bets.filter(b => b.det?.rule === 3).length;
+    const r0 = bets.filter(b => b.det?.pts === 0).length;
+    acertosHtml = `
+      <div class="modal-section-title">Resultado</div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="ms-val" style="color:var(--green-light)">${r1}</div><div class="ms-lbl">🎯 Exatos</div></div>
+        <div class="mini-stat"><div class="ms-val" style="color:var(--gold)">${r2}</div><div class="ms-lbl">✅ Resultado</div></div>
+        <div class="mini-stat"><div class="ms-val" style="color:var(--blue)">${r3}</div><div class="ms-lbl">🔵 Parcial</div></div>
+        <div class="mini-stat"><div class="ms-val" style="color:var(--red)">${r0}</div><div class="ms-lbl">❌ Errou</div></div>
+      </div>`;
+  }
+
+  const topScoreDisplay = topScore
+    ? topScore[0].replace('-', ' × ') + ` <span style="color:var(--muted);font-size:11px">(${topScore[1]}×)</span>`
+    : '—';
+
+  const html = `
+    <div class="modal-overlay" onclick="closeGameModal(event)">
+      <div class="modal-sheet" onclick="event.stopPropagation()">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+          <div class="modal-badge-row">
+            <span class="badge">Grupo ${game.group} · Rodada ${game.round}</span>
+            <span class="badge ${game.played ? 'played' : ''}">${game.played ? '✅ Encerrado' : '⏳ Aguardando'}${game.isBrazil ? ' · 🇧🇷' : ''}</span>
+          </div>
+          <div class="modal-match">
+            <span class="modal-team">${game.teamA}</span>
+            ${scoreBox}
+            <span class="modal-team right">${game.teamB}</span>
+          </div>
+        </div>
+        <div class="modal-body">
+
+          ${acertosHtml}
+
+          <div class="modal-section-title">Distribuição de apostas (${totalBets} participantes)</div>
+          <div class="vote-bar-wrap" style="cursor:pointer">
+            <div id="vseg-A" class="vote-seg a" style="width:${pctA}%" onclick="filterModalBets('A')" title="${game.teamA} — ${votes.A} apostas">${pctA > 8 ? pctA+'%' : ''}</div>
+            <div id="vseg-D" class="vote-seg d" style="width:${pctD}%" onclick="filterModalBets('D')" title="Empate — ${votes.D} apostas">${pctD > 8 ? pctD+'%' : ''}</div>
+            <div id="vseg-B" class="vote-seg b" style="width:${pctB}%" onclick="filterModalBets('B')" title="${game.teamB} — ${votes.B} apostas">${pctB > 8 ? pctB+'%' : ''}</div>
+          </div>
+          <div class="vote-legend">
+            <span style="cursor:pointer" onclick="filterModalBets('A')"><span class="dot" style="background:var(--blue)"></span>${game.teamA} ${pctA}%</span>
+            <span style="cursor:pointer" onclick="filterModalBets('D')"><span class="dot" style="background:var(--muted)"></span>Empate ${pctD}%</span>
+            <span style="cursor:pointer" onclick="filterModalBets('B')"><span class="dot" style="background:var(--red)"></span>${game.teamB} ${pctB}%</span>
+          </div>
+
+          <div class="mini-stats">
+            <div class="mini-stat">
+              <div class="ms-val" style="font-size:13px;font-weight:800">${topScoreDisplay}</div>
+              <div class="ms-lbl">Placar mais apostado</div>
+            </div>
+            <div class="mini-stat">
+              <div class="ms-val">${avgGoals}</div>
+              <div class="ms-lbl">Média de gols</div>
+            </div>
+          </div>
+
+          <div id="modal-bets-header" class="modal-section-title">Apostas individuais</div>
+          <div id="modal-filter-chip"></div>
+          <div id="modal-bet-list" class="bet-list">${buildBetItemsHtml(bets)}</div>
+        </div>
+      </div>
+    </div>`;
+
+  const el = document.getElementById('game-modal');
+  el.innerHTML = html;
+  el.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+
+function buildBetItemsHtml(bets) {
+  let html = '';
+  bets.forEach(({ p, det }) => {
+    const hasPred = det && det.pred.scoreA !== null && det.pred.scoreB !== null;
+    if (!hasPred) {
+      html += `
+        <div class="bet-item">
+          <div class="bet-avatar" style="background:${p.color}">${getInitials(p.name)}</div>
+          <div class="bet-name">${p.name} <span style="color:var(--muted);font-weight:400;font-size:11px">(${p.total} pts)</span></div>
+          <div class="bet-no-pred">sem aposta</div>
+        </div>`;
+      return;
+    }
+    const { scoreA, scoreB } = det.pred;
+    const cls = det.pts === null ? '' : `r${det.rule}`;
+    let ptsHtml = '';
+    if (det.pts !== null) {
+      if (det.pts === 0) ptsHtml = `<div class="bet-pts pts-red">0 pts</div>`;
+      else {
+        const mult = det.mult > 1 ? `×${det.mult}` : '';
+        ptsHtml = `<div class="bet-pts ${ruleClass(det.rule)}">+${det.pts}${mult}</div>`;
+      }
+    }
+    html += `
+      <div class="bet-item ${cls}">
+        <div class="bet-avatar" style="background:${p.color}">${getInitials(p.name)}</div>
+        <div class="bet-name">${p.name} <span style="color:var(--muted);font-weight:400;font-size:11px">(${p.total} pts)</span></div>
+        <div class="bet-score">${scoreA} – ${scoreB}</div>
+        ${ptsHtml}
+      </div>`;
+  });
+  return html;
+}
+
+function filterModalBets(vote) {
+  const allBets = window._modalBets || [];
+  const teamA   = window._modalTeamA;
+  const teamB   = window._modalTeamB;
+
+  // Toggle: clicou no mesmo → limpa filtro
+  if (window._modalFilter === vote) {
+    window._modalFilter = null;
+  } else {
+    window._modalFilter = vote;
+  }
+  const f = window._modalFilter;
+
+  // Atualiza visual dos segmentos
+  ['A','D','B'].forEach(v => {
+    const seg = document.getElementById('vseg-' + v);
+    if (!seg) return;
+    seg.classList.toggle('dimmed', f !== null && f !== v);
+  });
+
+  // Chip de filtro ativo
+  const chipEl = document.getElementById('modal-filter-chip');
+  if (chipEl) {
+    if (f === null) {
+      chipEl.innerHTML = '';
+    } else {
+      const label = f === 'A' ? '🔵 ' + teamA : f === 'B' ? '🔴 ' + teamB : '⚪ Empate';
+      const cls   = f === 'A' ? 'a' : f === 'B' ? 'b' : 'd';
+      chipEl.innerHTML = `<span class="vote-filter-chip ${cls}" onclick="filterModalBets('${f}')">✕ ${label}</span>`;
+    }
+  }
+
+  // Filtra apostas
+  const filtered = f === null ? allBets : allBets.filter(({ det }) => {
+    if (!det || det.pred.scoreA === null) return false;
+    const { scoreA, scoreB } = det.pred;
+    if (f === 'A') return scoreA > scoreB;
+    if (f === 'B') return scoreB > scoreA;
+    if (f === 'D') return scoreA === scoreB;
+    return true;
+  });
+
+  // Atualiza título e lista
+  const headerEl = document.getElementById('modal-bets-header');
+  if (headerEl) {
+    const count = filtered.filter(b => b.det?.pred?.scoreA !== null).length;
+    headerEl.textContent = f === null
+      ? 'Apostas individuais'
+      : `${count} aposta${count !== 1 ? 's' : ''} — ${f === 'A' ? teamA : f === 'B' ? teamB : 'Empate'}`;
+  }
+
+  const listEl = document.getElementById('modal-bet-list');
+  if (listEl) listEl.innerHTML = buildBetItemsHtml(filtered);
+}
+
+function closeGameModal(e) {
+  const el = document.getElementById('game-modal');
+  el.style.display = 'none';
+  el.innerHTML = '';
+  document.body.style.overflow = '';
+  window._modalBets = null;
+  window._modalFilter = null;
 }
 
 function showTab(id) {
