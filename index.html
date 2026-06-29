@@ -207,6 +207,74 @@
       margin: 14px 0 6px 4px;
     }
 
+    /* ── ETAPA RANKING ── */
+    .etapa-section {
+      margin-top: 24px;
+    }
+    .etapa-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+      background: var(--card2);
+      border-radius: 10px 10px 0 0;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      cursor: pointer;
+      user-select: none;
+    }
+    .etapa-header-title {
+      font-size: 13px; font-weight: 700; color: var(--text);
+      flex: 1;
+    }
+    .etapa-header-caret {
+      font-size: 11px; color: var(--muted); transition: transform 0.2s;
+    }
+    .etapa-header.collapsed .etapa-header-caret { transform: rotate(-90deg); }
+    .etapa-body {
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      overflow: hidden;
+    }
+    .etapa-body.hidden { display: none; }
+    .etapa-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    .etapa-row:last-child { border-bottom: none; }
+    .etapa-pos {
+      font-size: 13px; font-weight: 700; color: var(--muted);
+      width: 22px; text-align: center; flex-shrink: 0;
+    }
+    .etapa-pos.gold   { color: #FFD700; }
+    .etapa-pos.silver { color: #C0C0C0; }
+    .etapa-pos.bronze { color: #CD7F32; }
+    .etapa-info {
+      flex: 1; min-width: 0;
+    }
+    .etapa-name {
+      font-size: 13px; color: var(--text); font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .etapa-stats {
+      font-size: 10px; color: var(--muted); margin-top: 2px; display: flex; gap: 8px;
+    }
+    .etapa-stat-chip {
+      display: flex; align-items: center; gap: 2px;
+    }
+    .etapa-pts {
+      font-size: 16px; font-weight: 800; color: var(--yellow);
+    }
+    .etapa-pts-lbl {
+      font-size: 10px; color: var(--muted); margin-left: 2px;
+    }
+    .etapa-inactive {
+      padding: 12px 14px;
+      font-size: 12px; color: var(--muted); text-align: center;
+      font-style: italic;
+    }
+
     /* ── GAME CARDS ── */
     .group-filter {
       display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
@@ -796,6 +864,23 @@
       border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;
       font-size: 13px; color: rgba(240,192,64,0.85); text-align: center;
     }
+
+    /* ── PHASE TABS (eliminatória) ── */
+    .phase-tabs {
+      display: flex; gap: 6px; flex-wrap: nowrap; margin-bottom: 10px;
+      overflow-x: auto; padding-bottom: 2px; scrollbar-width: none;
+    }
+    .phase-tabs::-webkit-scrollbar { display: none; }
+    .phase-tab-btn {
+      padding: 5px 14px; border-radius: 20px; flex-shrink: 0;
+      border: 1px solid var(--border); background: var(--card);
+      color: var(--muted); font-size: 12px; cursor: pointer;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .phase-tab-btn.active {
+      background: var(--yellow); border-color: var(--yellow);
+      color: #000; font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -930,6 +1015,26 @@ const BLOCK_CONFIGS = [
 const GROUP_COLS = [2, 9, 16, 23];
 
 // ============================================================
+// ETAPAS DO BOLÃO (agrupamento para ranking próprio)
+// ============================================================
+const ETAPAS = [
+  { id: 'grupos',    label: 'Fase de Grupo',         phaseKeys: ['grupos'] },
+  { id: 'avos',      label: '16-Avos e Oitavas',     phaseKeys: ['16avos', 'oitavas'] },
+  { id: 'quartas_f', label: 'Quartas, Semi e Final',  phaseKeys: ['quartas', 'semis', 'final'] },
+];
+
+// ============================================================
+// FASES ELIMINATÓRIAS
+// ============================================================
+const KNOCKOUT_PHASES = [
+  { id: '16avos',  label: '16-Avos',   sheetName: '16-Avos de Final', isFinal: false },
+  { id: 'oitavas', label: 'Oitavas',   sheetName: 'Oitavas de Final', isFinal: false },
+  { id: 'quartas', label: 'Quartas',   sheetName: 'Quartas de Final', isFinal: false },
+  { id: 'semis',   label: 'Semifinais',sheetName: 'Semifinais',       isFinal: false },
+  { id: 'final',   label: 'Final',     sheetName: 'Finais',           isFinal: true  },
+];
+
+// ============================================================
 // FETCH VIA GOOGLE APPS SCRIPT (sem CORS, funciona de qualquer origem)
 // ============================================================
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx8NcGf9zZuLpKs2971LSf9RP8ZdN120zR32IfgavLFWqFfF1WsPyM-ILum6pLS3AJZ/exec';
@@ -962,9 +1067,49 @@ function extractGames(rows) {
             teamA, teamB, scoreA, scoreB,
             played: scoreA !== null && scoreB !== null,
             isBrazil: teamA === 'Brasil' || teamB === 'Brasil',
+            isFinal: false,
+            phase: 'grupos',
+            phaseLabel: 'Fase de Grupos',
           });
         }
       }
+    }
+  }
+  return games;
+}
+
+// ============================================================
+// EXTRAÇÃO DE JOGOS — FASE ELIMINATÓRIA
+// Varre todas as linhas nas mesmas posições de coluna da fase de grupos
+// ============================================================
+function extractKnockoutGames(rows, phase) {
+  const games = [];
+  for (let gi = 0; gi < GROUP_COLS.length; gi++) {
+    const gc = GROUP_COLS[gi];
+    for (let rowIdx = 2; rowIdx < rows.length; rowIdx++) {
+      const row = rows[rowIdx] || [];
+      const cell = v => (v === null || v === undefined || v === '') ? '' : String(v).trim();
+
+      const teamA = cell(row[gc + 0]);
+      const teamB = cell(row[gc + 3]);
+      if (!teamA || !teamB || teamA === teamB || !isNaN(+teamA) || !isNaN(+teamB)) continue;
+
+      const s1 = cell(row[gc + 1]);
+      const s2 = cell(row[gc + 2]);
+      const scoreA = s1 !== '' && !isNaN(+s1) ? +s1 : null;
+      const scoreB = s2 !== '' && !isNaN(+s2) ? +s2 : null;
+      games.push({
+        id: `${phase.id}|${[teamA, teamB].sort().join('|')}`,
+        phase: phase.id,
+        phaseLabel: phase.label,
+        matchNum: games.length + 1,
+        group: null,
+        round: null,
+        teamA, teamB, scoreA, scoreB,
+        played: scoreA !== null && scoreB !== null,
+        isBrazil: teamA === 'Brasil' || teamB === 'Brasil',
+        isFinal: phase.isFinal,
+      });
     }
   }
   return games;
@@ -988,33 +1133,40 @@ function calcPontos(pA, pB, rA, rB, isBrazil, isFinal = false) {
 }
 
 function pontuarParticipante(gabGames, predGames) {
+  // Matching por ID — imune a diferenças de contagem entre sheets
+  const predById = {};
+  predGames.forEach(g => { if (g && g.id) predById[g.id] = g; });
+
   let total = 0, brazilPts = 0, r1 = 0, r2 = 0, r3 = 0;
   const details = [];
-  for (let i = 0; i < gabGames.length; i++) {
-    const real = gabGames[i];
-    const pred = predGames[i] || real;
+  const phaseBreakdown = {};
+
+  for (const real of gabGames) {
+    const pred = predById[real.id] || { ...real, scoreA: null, scoreB: null };
     if (!real.played) {
       details.push({ real, pred, pts: null, rule: null, mult: 1 });
       continue;
     }
-    const res = calcPontos(pred.scoreA, pred.scoreB, real.scoreA, real.scoreB, real.isBrazil);
+    const res = calcPontos(pred.scoreA, pred.scoreB, real.scoreA, real.scoreB, real.isBrazil, real.isFinal);
     if (res.rule === 1) r1++;
     else if (res.rule === 2) r2++;
     else if (res.rule === 3) r3++;
     if (real.isBrazil) brazilPts += res.pts;
     total += res.pts;
+    const phaseKey = real.phase || 'grupos';
+    phaseBreakdown[phaseKey] = (phaseBreakdown[phaseKey] || 0) + res.pts;
     details.push({ real, pred, ...res });
   }
-  return { total, brazilPts, r1, r2, r3, details };
+  return { total, brazilPts, r1, r2, r3, details, phaseBreakdown };
 }
 
 // ============================================================
 // FETCH via JSONP → GAS (sem CORS, funciona de file:// e https://)
 // ============================================================
-function fetchSheet(id) {
+function fetchSheet(id, sheetName = 'Fase de Grupos') {
   return new Promise((resolve, reject) => {
     const cbName = '__gasCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-    const url = `${GAS_URL}?id=${encodeURIComponent(id)}&sheet=${encodeURIComponent('Fase de Grupos')}&callback=${cbName}`;
+    const url = `${GAS_URL}?id=${encodeURIComponent(id)}&sheet=${encodeURIComponent(sheetName)}&callback=${cbName}`;
 
     const timeout = setTimeout(() => {
       delete window[cbName];
@@ -1054,22 +1206,59 @@ async function loadData() {
   document.getElementById('ranking-content').style.display = 'none';
 
   try {
-    const [gabRows, ...allPartRows] = await Promise.all([
-      fetchSheet(GABARITO_ID),
-      ...PARTICIPANTS_CONFIG.map(p => fetchSheet(p.id).catch(() => null)),
+    // ── Stage 1a: gabarito da fase de grupos (crítico) ───────
+    const gabGrpRows = await fetchSheet(GABARITO_ID, 'Fase de Grupos');
+
+    // ── Stage 1b: gabarito das fases eliminatórias (erros tolerados) ──
+    const gabKoRowsArr = await Promise.all(
+      KNOCKOUT_PHASES.map(p =>
+        fetchSheet(GABARITO_ID, p.sheetName).catch(() => null)
+      )
+    );
+
+    const gabGames = extractGames(gabGrpRows);
+    const gabKoGames = KNOCKOUT_PHASES.map((phase, i) =>
+      gabKoRowsArr[i] ? extractKnockoutGames(gabKoRowsArr[i], phase) : []
+    );
+
+    // Só busca participantes das fases que têm jogos cadastrados
+    const activeKoPhases = KNOCKOUT_PHASES.filter((_, i) => gabKoGames[i].length > 0);
+    const allGabGames = [...gabGames, ...gabKoGames.flat()];
+
+    // ── Stage 2: apostas dos participantes (grupos + fases ativas) ──
+    const N = PARTICIPANTS_CONFIG.length;
+    const allPartResults = await Promise.all([
+      ...PARTICIPANTS_CONFIG.map(p => fetchSheet(p.id, 'Fase de Grupos').catch(() => null)),
+      ...activeKoPhases.flatMap(phase =>
+        PARTICIPANTS_CONFIG.map(p => fetchSheet(p.id, phase.sheetName).catch(() => null))
+      ),
     ]);
 
-    const gabGames = extractGames(gabRows);
-    const playedCount = gabGames.filter(g => g.played).length;
+    const partGrpRows = allPartResults.slice(0, N);
+    const partKoRowsByPhase = activeKoPhases.map((_, ki) =>
+      allPartResults.slice(N + ki * N, N + (ki + 1) * N)
+    );
 
-    const participants = PARTICIPANTS_CONFIG.map((cfg, i) => {
-      const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
-      if (!allPartRows[i]) {
-        return { ...cfg, color, total: 0, brazilPts: 0, r1: 0, r2: 0, r3: 0, details: [], error: true };
+    // ── Pontuação ──────────────────────────────────────────────
+    const participants = PARTICIPANTS_CONFIG.map((cfg, pi) => {
+      const color = AVATAR_COLORS[pi % AVATAR_COLORS.length];
+      if (!partGrpRows[pi]) {
+        return { ...cfg, color, total: 0, brazilPts: 0, r1: 0, r2: 0, r3: 0, details: [], phaseBreakdown: {}, avosPts: 0, error: true };
       }
-      const predGames = extractGames(allPartRows[i]);
-      const score = pontuarParticipante(gabGames, predGames);
-      return { ...cfg, color, ...score };
+      const predGrpGames = extractGames(partGrpRows[pi]);
+      const predKoGames = activeKoPhases.flatMap((phase, ki) => {
+        const rows = partKoRowsByPhase[ki][pi];
+        const gabPhaseGames = gabKoGames[KNOCKOUT_PHASES.indexOf(phase)];
+        // Se não tem apostas nessa fase, trata como sem palpite (scoreA/B null)
+        return rows
+          ? extractKnockoutGames(rows, phase)
+          : gabPhaseGames.map(g => ({ ...g, scoreA: null, scoreB: null }));
+      });
+      const allPredGames = [...predGrpGames, ...predKoGames];
+      const score = pontuarParticipante(allGabGames, allPredGames);
+      const AVOS_KEYS = ['16avos', 'oitavas'];
+      const avosPts = AVOS_KEYS.reduce((s, k) => s + (score.phaseBreakdown[k] || 0), 0);
+      return { ...cfg, color, ...score, avosPts };
     });
 
     // Sort por critérios de desempate
@@ -1082,11 +1271,21 @@ async function loadData() {
       return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
     });
 
-    // Ranking anterior (para indicadores de variação)
     const prevRanking = JSON.parse(localStorage.getItem('bolao-prev-ranking') || '[]');
     localStorage.setItem('bolao-prev-ranking', JSON.stringify(participants.map(p => p.id)));
 
-    state = { gabGames, participants, playedCount, total: gabGames.length, prevRanking };
+    const playedCount = allGabGames.filter(g => g.played).length;
+
+    // Lista pré-ordenada por 16-avos + oitavas (usada no modal)
+    const participantsByAvos = participants.slice().sort((a, b) => b.avosPts - a.avosPts);
+    console.log('[BOLÃO] avosPts por participante:', participantsByAvos.map(p => `${p.name}=${p.avosPts}`).join(', '));
+
+    state = {
+      gabGames, gabKoGames, allGabGames,
+      participants, participantsByAvos, playedCount,
+      total: allGabGames.length,
+      prevRanking, activeKoPhases,
+    };
 
     renderRanking();
     renderJogos(activeFilter);
@@ -1095,7 +1294,10 @@ async function loadData() {
 
     const now = new Date();
     const hm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    document.getElementById('subtitle-text').textContent = `Atualizado às ${hm} · Fase de Grupos`;
+    const currentPhaseLabel = activeKoPhases.length > 0
+      ? activeKoPhases[activeKoPhases.length - 1].label
+      : 'Fase de Grupos';
+    document.getElementById('subtitle-text').textContent = `Atualizado às ${hm} · ${currentPhaseLabel}`;
 
   } catch (err) { // eslint-disable-line
     document.getElementById('loading-indicator').style.display = 'none';
@@ -1104,7 +1306,7 @@ async function loadData() {
       `<div class="error-box">⚠️ Erro ao carregar dados: ${err.message}<br><br>
        <small>Possíveis causas:<br>
        • A planilha não está pública ("Qualquer pessoa com o link")<br>
-       • Nome da aba não corresponde a "Fase de Grupos"<br>
+       • Nome da aba não corresponde à fase esperada<br>
        • Problema de conexão</small></div>`;
     fab.classList.remove('spinning');
     return;
@@ -1147,7 +1349,7 @@ function posChangeHtml(id, currentIdx, prevRanking) {
 
 function renderRanking() {
   if (!state) return;
-  const { participants, playedCount, total, prevRanking } = state;
+  const { participants, playedCount, total } = state;
   const remaining = total - playedCount;
 
   let html = `
@@ -1167,102 +1369,189 @@ function renderRanking() {
     </div>
   `;
 
-  if (playedCount === 0) {
-    html += `<div class="no-data-banner">⏳ Nenhum jogo disputado ainda. O placar será atualizado conforme os resultados forem inseridos na planilha.</div>`;
-  }
+  // Etapa 1 (índice 0) = fechada, Etapa 2 (índice 1) = aberta, Etapa 3 (índice 2) = fechada
+  ETAPAS.forEach((etapa, ei) => {
+    const startCollapsed = ei !== 1;
+    const rows = participants.map(p => {
+      const pts = etapa.phaseKeys.reduce((s, k) => s + (p.phaseBreakdown?.[k] || 0), 0);
+      return { p, pts };
+    }).sort((a, b) => b.pts - a.pts);
 
-  participants.forEach((p, i) => {
-    const sub = playedCount > 0
-      ? `🎯 ${p.r1} · ✅ ${p.r2} · 🔵 ${p.r3}`
-      : 'Aguardando jogos...';
+    const hasPoints = rows.some(r => r.pts > 0);
+    const bodyId = `etapa-body-${ei}`;
+    const headId = `etapa-head-${ei}`;
+
     html += `
-      <div class="rank-item" onclick="showParticipant('${p.id}')">
-        <div class="rank-pos">${posLabel(i)}</div>
-        <div class="rank-avatar" style="background:${p.color}">${getInitials(p.name)}</div>
-        <div class="rank-info">
-          <div class="rank-name">${p.name}</div>
-          <div class="rank-sub">${sub}</div>
+      <div class="etapa-section">
+        <div class="etapa-header${startCollapsed ? ' collapsed' : ''}" id="${headId}" onclick="toggleEtapa(${ei})">
+          <div class="etapa-header-title">${etapa.label}</div>
+          <div class="etapa-header-caret">▼</div>
         </div>
-        <div class="rank-pts-wrap">
-          <div class="rank-pts">${p.total}</div>
-          <div class="rank-pts-lbl">pts</div>
-        </div>
-        ${posChangeHtml(p.id, i, prevRanking)}
-      </div>
+        <div class="etapa-body${startCollapsed ? ' hidden' : ''}" id="${bodyId}">
     `;
+
+    if (!hasPoints) {
+      html += `<div class="etapa-inactive">Nenhum jogo desta etapa disputado ainda</div>`;
+    } else {
+      rows.forEach((r, rank) => {
+        const posClass = rank === 0 ? 'gold' : rank === 1 ? 'silver' : rank === 2 ? 'bronze' : '';
+        const posStr = rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `${rank + 1}º`;
+        // Computa r1/r2/r3 apenas para os jogos desta etapa
+        const etapaDetails = (r.p.details || []).filter(d => {
+          const pk = d.real.phase || 'grupos';
+          return etapa.phaseKeys.includes(pk) && d.pts !== null;
+        });
+        const er1 = etapaDetails.filter(d => d.rule === 1).length;
+        const er2 = etapaDetails.filter(d => d.rule === 2).length;
+        const er3 = etapaDetails.filter(d => d.rule === 3).length;
+        const statsHtml = (er1 + er2 + er3) > 0 ? `
+          <div class="etapa-stats">
+            <span class="etapa-stat-chip" title="Placares exatos">🎯 ${er1}</span>
+            <span class="etapa-stat-chip" title="Resultado certo">✅ ${er2}</span>
+            <span class="etapa-stat-chip" title="Gols certos">🔵 ${er3}</span>
+          </div>` : '';
+        html += `
+          <div class="etapa-row" onclick="showParticipant('${r.p.id}')">
+            <div class="etapa-pos ${posClass}">${posStr}</div>
+            <div class="rank-avatar" style="background:${r.p.color};width:26px;height:26px;font-size:10px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">${getInitials(r.p.name)}</div>
+            <div class="etapa-info">
+              <div class="etapa-name">${r.p.name}</div>
+              ${statsHtml}
+            </div>
+            <div><span class="etapa-pts">${r.pts}</span><span class="etapa-pts-lbl">pts</span></div>
+          </div>
+        `;
+      });
+    }
+
+    html += `</div></div>`;
   });
 
-  html += `<div style="text-align:center;font-size:11px;color:var(--muted);margin-top:8px">Toque em um participante para ver detalhes</div>`;
+  html += `<div style="text-align:center;font-size:11px;color:var(--muted);margin-top:12px">Toque em um participante para ver detalhes</div>`;
   document.getElementById('ranking-content').innerHTML = html;
+}
+
+function toggleEtapa(ei) {
+  const head = document.getElementById(`etapa-head-${ei}`);
+  const body = document.getElementById(`etapa-body-${ei}`);
+  const collapsed = body.classList.toggle('hidden');
+  head.classList.toggle('collapsed', collapsed);
 }
 
 // ============================================================
 // RENDER — JOGOS
 // ============================================================
+let activePhase  = '16avos';
 let activeFilter = 'Todos';
 
-function renderJogos(filter = 'Todos') {
-  if (!state) return;
-  activeFilter = filter;
-  const { gabGames, participants } = state;
-  const groups = ['Todos','A','B','C','D','E','F','G','H','I','J','K','L'];
-  const filtered = filter === 'Todos' ? gabGames : gabGames.filter(g => g.group === filter);
+function setPhase(phase) {
+  activePhase = phase;
+  if (phase !== 'grupos') activeFilter = 'Todos';
+  renderJogos();
+}
 
-  let html = '<div class="group-filter">';
-  for (const g of groups) {
-    html += `<button class="filter-btn ${filter===g?'active':''}" onclick="renderJogos('${g}')">${g}</button>`;
+function buildGameCardHtml(game, participants) {
+  let exact = 0, resultOk = 0, partial = 0, errou = 0;
+  if (game.played) {
+    for (const p of participants) {
+      const det = p.details.find(d => d.real.id === game.id);
+      if (det && det.rule !== null) {
+        if (det.rule === 1) exact++;
+        else if (det.rule === 2) resultOk++;
+        else if (det.rule === 3) partial++;
+        else errou++;
+      }
+    }
+  }
+  const scoreBox = game.played
+    ? `<div class="game-score-box played">${game.scoreA} – ${game.scoreB}</div>`
+    : `<div class="game-score-box pending">vs</div>`;
+
+  const isKo = game.phase && game.phase !== 'grupos';
+  const badgeLeft = isKo
+    ? `${game.phaseLabel} · Jogo ${game.matchNum}`
+    : `Grupo ${game.group} · R${game.round}`;
+  const finalBadge = game.isFinal ? ' · ×2 Final' : '';
+  const brazilBadge = game.isBrazil ? ' · 🇧🇷 ×2' : '';
+
+  return `
+    <div class="game-card" onclick="showGameModal('${game.id}')">
+      <div class="game-meta">
+        <span class="badge">${badgeLeft}</span>
+        <span class="badge ${game.played ? 'played' : ''}">${game.played ? '✅ Encerrado' : '⏳ Aguardando'}${brazilBadge}${finalBadge}</span>
+      </div>
+      <div class="game-row">
+        <span class="game-team">${game.teamA}</span>
+        ${scoreBox}
+        <span class="game-team right">${game.teamB}</span>
+      </div>
+      ${game.played && participants.length > 0 ? `
+        <div class="game-footer">
+          <span class="game-stat">🎯 Exatos: ${exact}</span>
+          <span class="game-stat">✅ Resultado: ${resultOk}</span>
+          <span class="game-stat">🔵 Parcial: ${partial}</span>
+          <span class="game-stat">❌ Errou: ${errou}</span>
+        </div>
+      ` : ''}
+      <div style="text-align:right;font-size:10px;color:var(--muted);margin-top:6px">👆 ver apostas</div>
+    </div>
+  `;
+}
+
+function renderJogos(filter) {
+  if (!state) return;
+  if (filter !== undefined) activeFilter = filter;
+
+  const { gabGames, gabKoGames, participants } = state;
+
+  // Monta abas de fase (só mostra fases com jogos)
+  const phaseTabs = [{ id: 'grupos', label: '🏟️ Grupos' }];
+  KNOCKOUT_PHASES.forEach((phase, i) => {
+    if (gabKoGames[i] && gabKoGames[i].length > 0)
+      phaseTabs.push({ id: phase.id, label: phase.label });
+  });
+
+  // Garante que activePhase é válido
+  if (!phaseTabs.find(t => t.id === activePhase)) activePhase = 'grupos';
+
+  let html = '<div class="phase-tabs">';
+  for (const tab of phaseTabs) {
+    html += `<button class="phase-tab-btn ${activePhase === tab.id ? 'active' : ''}" onclick="setPhase('${tab.id}')">${tab.label}</button>`;
   }
   html += '</div>';
 
-  if (!filtered.length) {
-    html += '<div class="empty-state"><div class="icon">⚽</div><p>Nenhum jogo encontrado</p></div>';
-  } else {
-    let lastGroup = null;
-    for (const game of filtered) {
-      if (filter === 'Todos' && game.group !== lastGroup) {
-        html += `<div class="section-label">Grupo ${game.group}</div>`;
-        lastGroup = game.group;
-      }
+  if (activePhase === 'grupos') {
+    const groups = ['Todos','A','B','C','D','E','F','G','H','I','J','K','L'];
+    const filtered = activeFilter === 'Todos' ? gabGames : gabGames.filter(g => g.group === activeFilter);
 
-      let exact=0, resultOk=0, partial=0, errou=0;
-      if (game.played) {
-        for (const p of participants) {
-          const det = p.details.find(d => d.real.id === game.id);
-          if (det && det.rule !== null) {
-            if (det.rule === 1) exact++;
-            else if (det.rule === 2) resultOk++;
-            else if (det.rule === 3) partial++;
-            else errou++;
-          }
+    html += '<div class="group-filter">';
+    for (const g of groups) {
+      html += `<button class="filter-btn ${activeFilter === g ? 'active' : ''}" onclick="renderJogos('${g}')">${g}</button>`;
+    }
+    html += '</div>';
+
+    if (!filtered.length) {
+      html += '<div class="empty-state"><div class="icon">⚽</div><p>Nenhum jogo encontrado</p></div>';
+    } else {
+      let lastGroup = null;
+      for (const game of filtered) {
+        if (activeFilter === 'Todos' && game.group !== lastGroup) {
+          html += `<div class="section-label">Grupo ${game.group}</div>`;
+          lastGroup = game.group;
         }
+        html += buildGameCardHtml(game, participants);
       }
-
-      const scoreBox = game.played
-        ? `<div class="game-score-box played">${game.scoreA} – ${game.scoreB}</div>`
-        : `<div class="game-score-box pending">vs</div>`;
-
-      html += `
-        <div class="game-card" onclick="showGameModal('${game.id}')">
-          <div class="game-meta">
-            <span class="badge">Grupo ${game.group} · R${game.round}</span>
-            <span class="badge ${game.played ? 'played' : ''}">${game.played ? '✅ Encerrado' : '⏳ Aguardando'}${game.isBrazil ? ' · 🇧🇷 x2' : ''}</span>
-          </div>
-          <div class="game-row">
-            <span class="game-team">${game.teamA}</span>
-            ${scoreBox}
-            <span class="game-team right">${game.teamB}</span>
-          </div>
-          ${game.played && participants.length > 0 ? `
-            <div class="game-footer">
-              <span class="game-stat">🎯 Exatos: ${exact}</span>
-              <span class="game-stat">✅ Resultado: ${resultOk}</span>
-              <span class="game-stat">🔵 Parcial: ${partial}</span>
-              <span class="game-stat">❌ Errou: ${errou}</span>
-            </div>
-          ` : ''}
-          <div style="text-align:right;font-size:10px;color:var(--muted);margin-top:6px">👆 ver apostas</div>
-        </div>
-      `;
+    }
+  } else {
+    // Fase eliminatória
+    const phaseIdx = KNOCKOUT_PHASES.findIndex(p => p.id === activePhase);
+    const koGames = gabKoGames[phaseIdx] || [];
+    if (!koGames.length) {
+      html += '<div class="empty-state"><div class="icon">⏳</div><p>Nenhum jogo ainda nesta fase</p></div>';
+    } else {
+      for (const game of koGames) {
+        html += buildGameCardHtml(game, participants);
+      }
     }
   }
 
@@ -1276,8 +1565,9 @@ function renderDetalhes() {
   if (!state) return;
   const { participants } = state;
 
-  const opts = participants.map(p =>
-    `<option value="${p.id}">${p.name} — ${p.total} pts</option>`
+  const sorted = [...participants].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
+  const opts = sorted.map(p =>
+    `<option value="${p.id}">${p.name}</option>`
   ).join('');
 
   document.getElementById('detalhes-content').innerHTML = `
@@ -1297,87 +1587,106 @@ function showParticipant(id) {
   }, 50);
 }
 
+function predCardHtml(det) {
+  const { real, pred } = det;
+  const cls = det.pts === null ? 'pending' : `r${det.rule}`;
+  const predStr = pred.scoreA !== null && pred.scoreB !== null ? `${pred.scoreA}–${pred.scoreB}` : '?–?';
+  const realStr = real.played ? `${real.scoreA}–${real.scoreB}` : 'em breve';
+  let ptsHtml = '';
+  if (det.pts === null) {
+    ptsHtml = `<span class="pred-pts pts-muted">⏳</span>`;
+  } else if (det.pts === 0) {
+    ptsHtml = `<span class="pred-pts pts-red">0 pts</span>`;
+  } else {
+    const mult = det.mult > 1 ? ` ×${det.mult}` : '';
+    ptsHtml = `<span class="pred-pts ${ruleClass(det.rule)}">+${det.pts} pts${mult}</span>`;
+  }
+  const label = real.phase === 'grupos'
+    ? `R${real.round}${real.isBrazil ? ' 🇧🇷' : ''} · ${real.teamA} vs ${real.teamB}`
+    : `${real.teamA} vs ${real.teamB}${real.isBrazil ? ' 🇧🇷' : ''}${real.isFinal ? ' 🏆' : ''}`;
+  return `
+    <div class="pred-card ${cls}">
+      <div class="pred-top"><span>${label}</span>${ptsHtml}</div>
+      <div class="pred-row">
+        <span class="pred-team">${real.teamA}</span>
+        <div class="pred-scores-box">
+          <div class="pred-score-main">${predStr}</div>
+          <div class="pred-score-real">${real.played ? `Real: ${realStr}` : 'aguardando'}</div>
+        </div>
+        <span class="pred-team right">${real.teamB}</span>
+      </div>
+      ${det.pts !== null && det.rule > 0 ? `<div style="font-size:10px;color:var(--muted);text-align:center;margin-top:5px">${ruleLabel(det.rule)}</div>` : ''}
+    </div>`;
+}
+
 function renderParticipantDetail(id) {
   if (!state || !id) return;
   const p = state.participants.find(x => x.id === id);
   if (!p) return;
 
-  const pos = state.participants.indexOf(p) + 1;
-  const scored = p.details.filter(d => d.pts !== null).length;
+  // Mapa phase → label mais legível para sub-seções
+  const phaseLabel = {
+    grupos: null, // agrupado por grupo, sem sub-label por fase
+    '16avos': '16-Avos de Final', oitavas: 'Oitavas de Final',
+    quartas: 'Quartas de Final', semis: 'Semifinais', final: 'Final',
+  };
 
-  let html = `
-    <div class="p-header">
-      <div class="p-avatar-lg" style="background:${p.color}">${getInitials(p.name)}</div>
-      <div class="p-name">${p.name}</div>
-      <div class="p-big-score">${p.total}</div>
-      <div class="p-pos">${pos}º lugar · ${scored} jogos pontuados</div>
-      <div class="p-stats">
-        <div class="p-stat">
-          <div class="val" style="color:var(--green-light)">${p.r1}</div>
-          <div class="lbl">🎯 Exatos</div>
-        </div>
-        <div class="p-stat">
-          <div class="val" style="color:var(--gold)">${p.r2}</div>
-          <div class="lbl">✅ Result.</div>
-        </div>
-        <div class="p-stat">
-          <div class="val" style="color:var(--blue)">${p.r3}</div>
-          <div class="lbl">🔵 Parcial</div>
-        </div>
-        <div class="p-stat">
-          <div class="val" style="color:#3fb950">${p.brazilPts}</div>
-          <div class="lbl">🇧🇷 Brasil</div>
-        </div>
-      </div>
-    </div>
-  `;
+  let html = '';
 
-  // Agrupar por grupo
-  const byGroup = {};
-  for (const det of p.details) {
-    if (!byGroup[det.real.group]) byGroup[det.real.group] = [];
-    byGroup[det.real.group].push(det);
-  }
+  ETAPAS.forEach((etapa, ei) => {
+    const startCollapsed = ei !== 1;
+    const bodyId = `det-etapa-body-${ei}`;
+    const headId = `det-etapa-head-${ei}`;
 
-  for (const [group, dets] of Object.entries(byGroup)) {
-    html += `<div class="section-label">Grupo ${group}</div>`;
-    for (const det of dets) {
-      const { real, pred } = det;
-      const cls = det.pts === null ? 'pending' : `r${det.rule}`;
-      const predStr = pred.scoreA !== null && pred.scoreB !== null ? `${pred.scoreA}–${pred.scoreB}` : '?–?';
-      const realStr = real.played ? `${real.scoreA}–${real.scoreB}` : 'em breve';
+    // Jogos desta etapa
+    const etapaDets = p.details.filter(d => etapa.phaseKeys.includes(d.real.phase || 'grupos'));
+    const etapaPts  = etapaDets.reduce((s, d) => s + (d.pts || 0), 0);
 
-      let ptsHtml = '';
-      if (det.pts === null) {
-        ptsHtml = `<span class="pred-pts pts-muted">⏳</span>`;
-      } else if (det.pts === 0) {
-        ptsHtml = `<span class="pred-pts pts-red">0 pts</span>`;
-      } else {
-        const mult = det.mult > 1 ? ` ×${det.mult}` : '';
-        ptsHtml = `<span class="pred-pts ${ruleClass(det.rule)}">+${det.pts} pts${mult}</span>`;
+    html += `
+      <div class="etapa-section">
+        <div class="etapa-header${startCollapsed ? ' collapsed' : ''}" id="${headId}" onclick="toggleDetEtapa(${ei})">
+          <div class="etapa-header-title">${etapa.label}</div>
+          <span style="font-size:13px;font-weight:700;color:var(--yellow);margin-right:6px">${etapaPts} pts</span>
+          <div class="etapa-header-caret">▼</div>
+        </div>
+        <div class="etapa-body${startCollapsed ? ' hidden' : ''}" id="${bodyId}" style="padding:8px">
+    `;
+
+    if (etapaDets.length === 0) {
+      html += `<div class="etapa-inactive">Nenhuma aposta nesta etapa ainda</div>`;
+    } else if (etapa.id === 'grupos') {
+      // Agrupa por grupo
+      const byGroup = {};
+      etapaDets.forEach(d => {
+        const g = d.real.group || '?';
+        if (!byGroup[g]) byGroup[g] = [];
+        byGroup[g].push(d);
+      });
+      for (const [grp, dets] of Object.entries(byGroup)) {
+        html += `<div class="section-label">Grupo ${grp}</div>`;
+        dets.forEach(d => { html += predCardHtml(d); });
       }
-
-      html += `
-        <div class="pred-card ${cls}">
-          <div class="pred-top">
-            <span>R${real.round}${real.isBrazil ? ' 🇧🇷' : ''} · ${real.teamA} vs ${real.teamB}</span>
-            ${ptsHtml}
-          </div>
-          <div class="pred-row">
-            <span class="pred-team">${real.teamA}</span>
-            <div class="pred-scores-box">
-              <div class="pred-score-main">${predStr}</div>
-              <div class="pred-score-real">${real.played ? `Real: ${realStr}` : 'aguardando'}</div>
-            </div>
-            <span class="pred-team right">${real.teamB}</span>
-          </div>
-          ${det.pts !== null && det.rule > 0 ? `<div style="font-size:10px;color:var(--muted);text-align:center;margin-top:5px">${ruleLabel(det.rule)}</div>` : ''}
-        </div>
-      `;
+    } else {
+      // Agrupa por fase dentro da etapa
+      etapa.phaseKeys.forEach(pk => {
+        const phaseDets = etapaDets.filter(d => (d.real.phase || 'grupos') === pk);
+        if (phaseDets.length === 0) return;
+        html += `<div class="section-label">${phaseLabel[pk] || pk}</div>`;
+        phaseDets.forEach(d => { html += predCardHtml(d); });
+      });
     }
-  }
+
+    html += `</div></div>`;
+  });
 
   document.getElementById('participant-detail').innerHTML = html;
+}
+
+function toggleDetEtapa(ei) {
+  const head = document.getElementById(`det-etapa-head-${ei}`);
+  const body = document.getElementById(`det-etapa-body-${ei}`);
+  const collapsed = body.classList.toggle('hidden');
+  head.classList.toggle('collapsed', collapsed);
 }
 
 // ============================================================
@@ -1388,11 +1697,9 @@ function renderParticipantDetail(id) {
 // ============================================================
 function renderStats() {
   if (!state) return;
-  const { participants, gabGames, playedCount } = state;
+  const { participants, playedCount } = state;
 
-  // Filtra só participantes sem erro
   const valid = participants.filter(p => !p.error && p.details && p.details.length > 0);
-  const gameCount = gabGames.length;
 
   if (valid.length === 0) {
     document.getElementById('stats-content').innerHTML =
@@ -1400,263 +1707,174 @@ function renderStats() {
     return;
   }
 
-  // ── 1. Time mais apostado para vencer ──────────────────────
-  const winVotes = {}; // teamName → count
-  valid.forEach(p => {
-    p.details.forEach(d => {
-      const { pred } = d;
-      if (pred.scoreA === null || pred.scoreB === null) return;
-      let winner = null;
-      if (pred.scoreA > pred.scoreB) winner = pred.teamA;
-      else if (pred.scoreB > pred.scoreA) winner = pred.teamB;
-      if (winner) winVotes[winner] = (winVotes[winner] || 0) + 1;
-    });
-  });
-  const winVotesSorted = Object.entries(winVotes).sort((a,b) => b[1]-a[1]).slice(0,5);
-  const maxWinVotes = winVotesSorted[0]?.[1] || 1;
-
-  // ── 2. Top 5 maiores goleadas apostadas ───────────────────
-  const allGoalDiffs = [];
-  valid.forEach(p => {
-    p.details.forEach(d => {
-      const { pred } = d;
-      if (pred.scoreA === null || pred.scoreB === null) return;
-      const diff = Math.abs(pred.scoreA - pred.scoreB);
-      if (diff === 0) return;
-      const winner = pred.scoreA > pred.scoreB ? pred.teamA : pred.teamB;
-      const loser  = pred.scoreA > pred.scoreB ? pred.teamB : pred.teamA;
-      const sa = pred.scoreA > pred.scoreB ? pred.scoreA : pred.scoreB;
-      const sb = pred.scoreA > pred.scoreB ? pred.scoreB : pred.scoreA;
-      allGoalDiffs.push({ diff, label: `${winner} ${sa}×${sb} ${loser}`, who: p.name });
-    });
-  });
-  const topGoalDiffs = allGoalDiffs.sort((a, b) => b.diff - a.diff).slice(0, 5);
-
-  // ── 3. Apostador mais goleador (mais gols apostados no total) ──
-  const totalGoalsPred = valid.map(p => {
-    let goals = 0;
-    p.details.forEach(d => {
-      if (d.pred.scoreA !== null) goals += d.pred.scoreA;
-      if (d.pred.scoreB !== null) goals += d.pred.scoreB;
-    });
-    return { name: p.name, color: p.color, goals };
-  }).sort((a,b) => b.goals - a.goals);
-
-  // ── 4. Apostador mais conservador (menos gols apostados) ──
-  const mostConservative = [...totalGoalsPred].sort((a,b) => a.goals - b.goals);
-
-  // ── 5. Placar mais apostado ────────────────────────────────
-  const scoreCounts = {};
-  valid.forEach(p => {
-    p.details.forEach(d => {
-      const { pred } = d;
-      if (pred.scoreA === null || pred.scoreB === null) return;
-      const key = `${Math.min(pred.scoreA,pred.scoreB)}-${Math.max(pred.scoreA,pred.scoreB)}`;
-      scoreCounts[key] = (scoreCounts[key] || 0) + 1;
-    });
-  });
-  const topScores = Object.entries(scoreCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
-
-  // ── 6. Jogos mais controversos (mais divisão de opiniões) ──
-  const gameControversy = gabGames.map(g => {
-    const votes = { A: 0, B: 0, D: 0 };
-    valid.forEach(p => {
-      const d = p.details.find(x => x.real.id === g.id);
-      if (!d || d.pred.scoreA === null || d.pred.scoreB === null) return;
-      const r = d.pred.scoreA > d.pred.scoreB ? 'A' : d.pred.scoreB > d.pred.scoreA ? 'B' : 'D';
-      votes[r]++;
-    });
-    const total = votes.A + votes.B + votes.D;
-    if (total === 0) return null;
-    // Entropia como medida de controversia: maior quando mais dividido
-    const entropy = ['A','B','D'].reduce((acc, k) => {
-      const p = votes[k] / total;
-      return p > 0 ? acc - p * Math.log2(p) : acc;
-    }, 0);
-    return { game: g, votes, total, entropy };
-  }).filter(Boolean).sort((a,b) => b.entropy - a.entropy).slice(0,3);
-
-  // ── 7. Jogos unânimes (todos apostaram no mesmo resultado) ──
-  const unanimousGames = gabGames.map(g => {
-    const votes = { A: 0, B: 0, D: 0 };
-    valid.forEach(p => {
-      const d = p.details.find(x => x.real.id === g.id);
-      if (!d || d.pred.scoreA === null || d.pred.scoreB === null) return;
-      const r = d.pred.scoreA > d.pred.scoreB ? 'A' : d.pred.scoreB > d.pred.scoreA ? 'B' : 'D';
-      votes[r]++;
-    });
-    const total = votes.A + votes.B + votes.D;
-    if (total < 2) return null;
-    const dominant = Math.max(votes.A, votes.B, votes.D);
-    if (dominant < total) return null; // não é unânime
-    const winner = votes.A === total ? g.teamA : votes.B === total ? g.teamB : 'Empate';
-    return { game: g, winner };
-  }).filter(Boolean);
-
-  // ── 8. Quem mais acertou placar exato (já jogados) ──
-  const exactRanking = valid.map(p => ({ name: p.name, color: p.color, r1: p.r1 }))
-    .sort((a,b) => b.r1 - a.r1).filter(p => p.r1 > 0).slice(0,5);
-
-  // ── 9. Brasil: maior apostador ────────────────────────────
-  const brazilRanking = valid.map(p => ({ name: p.name, color: p.color, pts: p.brazilPts }))
-    .sort((a,b) => b.pts - a.pts).filter(p => p.pts > 0).slice(0,5);
-
-  // ── Render ─────────────────────────────────────────────────
   let html = '';
 
-  // Cabeçalho info
-  html += `<div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:14px">
-    Análise de ${valid.length} participante${valid.length>1?'s':''} · ${gameCount} jogos na fase de grupos
-    ${playedCount > 0 ? `· ${playedCount} já disputados` : ''}
-  </div>`;
+  // ── ANÁLISES 16-AVOS ───────────────────────────────────────
+  const avosGames = state.allGabGames.filter(g => g.phase === '16avos');
+  const avosDetails = valid.map(p => ({
+    name: p.name, color: p.color,
+    dets: p.details.filter(d => d.real.phase === '16avos'),
+  })).filter(p => p.dets.length > 0);
 
-  // ── Maiores apostadores de vitórias por time ──
-  if (winVotesSorted.length > 0) {
-    html += `<div class="stats-section">
-      <div class="stats-section-title">🏅 Times mais apostados para vencer</div>
-      <div class="stat-row-list">`;
-    winVotesSorted.forEach(([team, count], i) => {
-      const pct = Math.round((count / (valid.length * gameCount)) * 100);
-      html += `<div class="stat-row">
-        <div class="sr-rank">${i+1}º</div>
-        <div class="sr-name">${team}</div>
-        <div style="flex:1;padding:0 8px">
-          <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(count/maxWinVotes*100)}%"></div></div>
-        </div>
-        <div class="sr-val">${count} apostas</div>
-      </div>`;
+  if (avosGames.length > 0 && avosDetails.length > 0) {
+    html += `<div style="margin-top:28px;padding:0 0 4px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px">Análise — 16-Avos de Final</div>`;
+
+    // A) Times mais apostados para avançar (vencer)
+    const avosWinVotes = {};
+    avosDetails.forEach(({ dets }) => {
+      dets.forEach(({ pred }) => {
+        if (pred.scoreA === null || pred.scoreB === null) return;
+        if (pred.scoreA === pred.scoreB) return; // empate não avança ninguém
+        const adv = pred.scoreA > pred.scoreB ? pred.teamA : pred.teamB;
+        avosWinVotes[adv] = (avosWinVotes[adv] || 0) + 1;
+      });
     });
-    html += `</div></div>`;
-  }
+    const avosAdvSorted = Object.entries(avosWinVotes).sort((a,b) => b[1]-a[1]).slice(0,8);
+    if (avosAdvSorted.length > 0) {
+      const maxAdv = avosAdvSorted[0][1];
+      html += `<div class="stats-section">
+        <div class="stats-section-title">🚀 Times mais apostados para avançar</div>
+        <div class="stat-row-list">`;
+      avosAdvSorted.forEach(([team, count], i) => {
+        html += `<div class="stat-row">
+          <div class="sr-rank">${i+1}º</div>
+          <div class="sr-name">${team}</div>
+          <div style="flex:1;padding:0 8px">
+            <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(count/maxAdv*100)}%"></div></div>
+          </div>
+          <div class="sr-val">${count} apostas</div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    }
 
-  // ── Top 5 maiores goleadas apostadas ──
-  if (topGoalDiffs.length > 0) {
-    html += `<div class="stats-section">
-      <div class="stats-section-title">💥 Maiores goleadas apostadas</div>
-      <div class="stat-row-list">`;
-    topGoalDiffs.forEach((item, i) => {
-      html += `<div class="stat-row">
-        <div class="sr-rank">${i+1}º</div>
-        <div style="flex:1;min-width:0">
-          <div class="sr-name">${item.label}</div>
-          <div class="sr-sub">por ${item.who}</div>
-        </div>
-        <div class="sr-val">+${item.diff}</div>
-      </div>`;
+    // B) Jogos mais controversos nos 16-avos
+    const avosControversy = avosGames.map(g => {
+      const votes = { A: 0, B: 0, D: 0 };
+      avosDetails.forEach(({ dets }) => {
+        const d = dets.find(x => x.real.id === g.id);
+        if (!d || d.pred.scoreA === null || d.pred.scoreB === null) return;
+        const r = d.pred.scoreA > d.pred.scoreB ? 'A' : d.pred.scoreB > d.pred.scoreA ? 'B' : 'D';
+        votes[r]++;
+      });
+      const tot = votes.A + votes.B + votes.D;
+      if (tot === 0) return null;
+      const entropy = ['A','B','D'].reduce((acc, k) => {
+        const pp = votes[k] / tot;
+        return pp > 0 ? acc - pp * Math.log2(pp) : acc;
+      }, 0);
+      return { game: g, votes, tot, entropy };
+    }).filter(Boolean).sort((a,b) => b.entropy - a.entropy).slice(0,4);
+
+    if (avosControversy.length > 0) {
+      html += `<div class="stats-section">
+        <div class="stats-section-title">🔥 Jogos mais divididos nos 16-Avos</div>
+        <div class="stat-row-list">`;
+      avosControversy.forEach(({ game, votes, tot }) => {
+        const pA = Math.round(votes.A/tot*100);
+        const pB = Math.round(votes.B/tot*100);
+        const pD = Math.round(votes.D/tot*100);
+        html += `<div class="stat-row" style="flex-direction:column;align-items:flex-start;gap:4px">
+          <div style="font-size:13px;font-weight:600">${game.teamA} × ${game.teamB}</div>
+          <div style="font-size:11px;color:var(--muted);display:flex;gap:10px">
+            <span>${game.teamA}: <strong style="color:var(--text)">${pA}%</strong></span>
+            <span>Empate: <strong style="color:var(--text)">${pD}%</strong></span>
+            <span>${game.teamB}: <strong style="color:var(--text)">${pB}%</strong></span>
+          </div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    }
+
+    // C) Unanimidades nos 16-avos
+    const avosUnanimous = avosGames.map(g => {
+      const votes = { A: 0, B: 0, D: 0 };
+      avosDetails.forEach(({ dets }) => {
+        const d = dets.find(x => x.real.id === g.id);
+        if (!d || d.pred.scoreA === null || d.pred.scoreB === null) return;
+        const r = d.pred.scoreA > d.pred.scoreB ? 'A' : d.pred.scoreB > d.pred.scoreA ? 'B' : 'D';
+        votes[r]++;
+      });
+      const tot = votes.A + votes.B + votes.D;
+      if (tot < 2) return null;
+      const dominant = Math.max(votes.A, votes.B, votes.D);
+      if (dominant < tot) return null;
+      const winner = votes.A === tot ? g.teamA : votes.B === tot ? g.teamB : 'Empate';
+      return { game: g, winner };
+    }).filter(Boolean);
+
+    if (avosUnanimous.length > 0) {
+      html += `<div class="stats-section">
+        <div class="stats-section-title">🤝 Apostas unânimes nos 16-Avos</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;padding:4px 0">`;
+      avosUnanimous.forEach(({ game, winner }) => {
+        html += `<span class="unanimous-badge">${game.teamA} × ${game.teamB} → ${winner}</span>`;
+      });
+      html += `</div></div>`;
+    }
+
+    // D) Ranking de acertos nos 16-avos (jogos já disputados)
+    const avosPlayedGames = avosGames.filter(g => g.played);
+    if (avosPlayedGames.length > 0) {
+      const avosExact = avosDetails.map(({ name, color, dets }) => {
+        let exact = 0, result = 0, pts = 0;
+        dets.forEach(d => {
+          if (d.pts === null) return;
+          if (d.rule === 1) exact++;
+          if (d.rule === 2) result++;
+          pts += d.pts;
+        });
+        return { name, color, exact, result, pts };
+      }).sort((a, b) => b.pts - a.pts).filter(p => p.pts > 0 || p.exact > 0 || p.result > 0);
+
+      if (avosExact.length > 0) {
+        html += `<div class="stats-section">
+          <div class="stats-section-title">🏆 Desempenho nos 16-Avos (jogados)</div>
+          <div class="stat-row-list">`;
+        avosExact.forEach((p, i) => {
+          html += `<div class="stat-row">
+            <div class="sr-rank">${posLabel(i)}</div>
+            <div class="rank-avatar" style="background:${p.color};width:22px;height:22px;font-size:9px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">${getInitials(p.name)}</div>
+            <div class="sr-name">${p.name}</div>
+            <div class="sr-sub" style="font-size:10px;color:var(--muted);margin-left:4px">🎯${p.exact} ✅${p.result}</div>
+            <div class="sr-val">${p.pts} pts</div>
+          </div>`;
+        });
+        html += `</div></div>`;
+      }
+    }
+
+    // E) Maiores goleadas apostadas nos 16-avos
+    const avosGoleadas = [];
+    avosDetails.forEach(({ name, dets }) => {
+      dets.forEach(({ pred }) => {
+        if (pred.scoreA === null || pred.scoreB === null) return;
+        const diff = Math.abs(pred.scoreA - pred.scoreB);
+        if (diff === 0) return;
+        const win = pred.scoreA > pred.scoreB ? pred.teamA : pred.teamB;
+        const los = pred.scoreA > pred.scoreB ? pred.teamB : pred.teamA;
+        const sa  = pred.scoreA > pred.scoreB ? pred.scoreA : pred.scoreB;
+        const sb  = pred.scoreA > pred.scoreB ? pred.scoreB : pred.scoreA;
+        avosGoleadas.push({ diff, label: `${win} ${sa}×${sb} ${los}`, who: name });
+      });
     });
-    html += `</div></div>`;
-  }
-
-  // ── Placar mais popular ──
-  if (topScores.length > 0) {
-    html += `<div class="stats-section">
-      <div class="stats-section-title">📋 Placares mais apostados</div>
-      <div class="stat-row-list">`;
-    topScores.forEach(([score, count], i) => {
-      const [a, b] = score.split('-');
-      html += `<div class="stat-row">
-        <div class="sr-rank">${i+1}º</div>
-        <div class="sr-name">${a} × ${b}</div>
-        <div class="sr-val">${count}×</div>
-      </div>`;
-    });
-    html += `</div></div>`;
-  }
-
-  // ── Apostadores goleadores ──
-  html += `<div class="stats-section">
-    <div class="stats-section-title">⚽ Quem apostou mais gols</div>
-    <div class="stat-row-list">`;
-  totalGoalsPred.slice(0,5).forEach((p, i) => {
-    html += `<div class="stat-row">
-      <div class="sr-rank">${i+1}º</div>
-      <div class="sr-name">${p.name}</div>
-      <div class="sr-val">${p.goals} gols</div>
-    </div>`;
-  });
-  html += `</div></div>`;
-
-  // ── Mais conservador ──
-  if (mostConservative[0]) {
-    html += `<div class="stats-section">
-      <div class="stats-section-title">🛡️ Apostador mais conservador</div>
-      <div class="stat-card">
-        <div class="stat-icon">😴</div>
-        <div class="stat-body">
-          <div class="stat-label">Apostou menos gols no total</div>
-          <div class="stat-value">${mostConservative[0].name}</div>
-          <div class="stat-sub">${mostConservative[0].goals} gols apostados</div>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  // ── Acertos de placar exato ──
-  if (exactRanking.length > 0) {
-    html += `<div class="stats-section">
-      <div class="stats-section-title">🎯 Mais acertos de placar exato</div>
-      <div class="stat-row-list">`;
-    exactRanking.forEach((p, i) => {
-      html += `<div class="stat-row">
-        <div class="sr-rank">${posLabel(i)}</div>
-        <div class="sr-name">${p.name}</div>
-        <div class="sr-val">${p.r1} acerto${p.r1>1?'s':''}</div>
-      </div>`;
-    });
-    html += `</div></div>`;
-  } else if (playedCount === 0) {
-    html += `<div class="stats-section">
-      <div class="stats-section-title">🎯 Placares exatos</div>
-      <div class="no-data-stats">Aguardando os jogos começarem 🕐</div>
-    </div>`;
-  }
-
-  // ── Brasil ──
-  if (brazilRanking.length > 0) {
-    html += `<div class="stats-section">
-      <div class="stats-section-title">🇧🇷 Maiores pontuadores nos jogos do Brasil</div>
-      <div class="stat-row-list">`;
-    brazilRanking.forEach((p, i) => {
-      html += `<div class="stat-row">
-        <div class="sr-rank">${posLabel(i)}</div>
-        <div class="sr-name">${p.name}</div>
-        <div class="sr-val">${p.pts} pts</div>
-      </div>`;
-    });
-    html += `</div></div>`;
-  }
-
-  // ── Jogos mais controversos ──
-  if (gameControversy.length > 0) {
-    html += `<div class="stats-section">
-      <div class="stats-section-title">🔥 Jogos mais controversos</div>
-      <div class="stat-row-list">`;
-    gameControversy.forEach((item, i) => {
-      const { game, votes, total } = item;
-      const pA = Math.round(votes.A/total*100);
-      const pB = Math.round(votes.B/total*100);
-      const pD = Math.round(votes.D/total*100);
-      html += `<div class="stat-row" style="flex-direction:column;align-items:flex-start;gap:4px">
-        <div style="font-size:13px;font-weight:600">${game.teamA} × ${game.teamB}</div>
-        <div style="font-size:11px;color:var(--muted);display:flex;gap:10px">
-          <span>${game.teamA}: <strong style="color:var(--text)">${pA}%</strong></span>
-          <span>Empate: <strong style="color:var(--text)">${pD}%</strong></span>
-          <span>${game.teamB}: <strong style="color:var(--text)">${pB}%</strong></span>
-        </div>
-      </div>`;
-    });
-    html += `</div></div>`;
-  }
-
-  // ── Jogos unânimes ──
-  if (unanimousGames.length > 0) {
-    html += `<div class="stats-section">
-      <div class="stats-section-title">🤝 Apostas unânimes (todos concordaram)</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;padding:4px 0">`;
-    unanimousGames.forEach(({ game, winner }) => {
-      html += `<span class="unanimous-badge">${game.teamA} × ${game.teamB} → ${winner}</span>`;
-    });
-    html += `</div></div>`;
+    const topAvosGoleadas = avosGoleadas.sort((a,b) => b.diff - a.diff).slice(0,5);
+    if (topAvosGoleadas.length > 0) {
+      html += `<div class="stats-section">
+        <div class="stats-section-title">💥 Maiores goleadas apostadas nos 16-Avos</div>
+        <div class="stat-row-list">`;
+      topAvosGoleadas.forEach((item, i) => {
+        html += `<div class="stat-row">
+          <div class="sr-rank">${i+1}º</div>
+          <div style="flex:1;min-width:0">
+            <div class="sr-name">${item.label}</div>
+            <div class="sr-sub">por ${item.who}</div>
+          </div>
+          <div class="sr-val">+${item.diff}</div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    }
   }
 
   document.getElementById('stats-content').innerHTML = html;
@@ -1667,14 +1885,15 @@ function renderStats() {
 // ============================================================
 function showGameModal(gameId) {
   if (!state) return;
-  const game = state.gabGames.find(g => g.id === gameId);
+  const game = state.allGabGames.find(g => g.id === gameId);
   if (!game) return;
 
-  // Coleta apostas de todos os participantes
-  const bets = state.participants.map(p => {
-    const det = p.details.find(d => d.real.id === gameId);
-    return { p, det };
-  });
+  // Apostas em ordem pré-calculada por 16-avos + oitavas (state.participantsByAvos)
+  const bets = state.participantsByAvos.map(p => ({
+    p, det: p.details.find(d => d.real.id === gameId),
+  }));
+  const etapaPtsMap = Object.fromEntries(state.participantsByAvos.map(p => [p.id, p.avosPts]));
+  console.log('[MODAL] bets order:', bets.map(b => `${b.p.name}=${b.p.avosPts}`).join(', '));
 
   // Estatísticas de votos
   const votes = { A: 0, D: 0, B: 0 };
@@ -1696,16 +1915,7 @@ function showGameModal(gameId) {
   const topScore = Object.entries(scoreCounts).sort((a,b) => b[1]-a[1])[0];
   const avgGoals = totalBets > 0 ? (totalGoals / totalBets).toFixed(1) : '—';
 
-  // Ordena igual ao ranking: pts desc, r1 desc, r2 desc, r3 desc, brazilPts desc, nome
-  bets.sort((a, b) => {
-    const pa = a.p, pb = b.p;
-    if (pb.total !== pa.total) return pb.total - pa.total;
-    if (pb.r1 !== pa.r1) return pb.r1 - pa.r1;
-    if (pb.r2 !== pa.r2) return pb.r2 - pa.r2;
-    if (pb.r3 !== pa.r3) return pb.r3 - pa.r3;
-    if (pb.brazilPts !== pa.brazilPts) return pb.brazilPts - pa.brazilPts;
-    return pa.name.localeCompare(pb.name, 'pt-BR', { sensitivity: 'base' });
-  });
+  // bets já vem pré-ordenado por avosPts (16-avos + oitavas) via state.participantsByAvos
 
   // ── Header ──
   const scoreBox = game.played
@@ -1718,6 +1928,7 @@ function showGameModal(gameId) {
 
   // Guarda bets e metadados para uso no filtro
   window._modalBets = bets;
+  window._modalEtapaPtsMap = etapaPtsMap;
   window._modalFilter = null;
   window._modalTeamA = game.teamA;
   window._modalTeamB = game.teamB;
@@ -1787,7 +1998,7 @@ function showGameModal(gameId) {
 
           <div id="modal-bets-header" class="modal-section-title">Apostas individuais</div>
           <div id="modal-filter-chip"></div>
-          <div id="modal-bet-list" class="bet-list">${buildBetItemsHtml(bets)}</div>
+          <div id="modal-bet-list" class="bet-list">${buildBetItemsHtml(bets, etapaPtsMap)}</div>
         </div>
       </div>
     </div>`;
@@ -1798,15 +2009,17 @@ function showGameModal(gameId) {
   document.body.style.overflow = 'hidden';
 }
 
-function buildBetItemsHtml(bets) {
+function buildBetItemsHtml(bets, etapaPtsMap) {
   let html = '';
+  console.log('[BUILD] iterating:', bets.map(b => b.p.name).join(', '));
   bets.forEach(({ p, det }) => {
+    const etaPts = etapaPtsMap ? (etapaPtsMap[p.id] ?? 0) : p.total;
     const hasPred = det && det.pred.scoreA !== null && det.pred.scoreB !== null;
     if (!hasPred) {
       html += `
         <div class="bet-item">
           <div class="bet-avatar" style="background:${p.color}">${getInitials(p.name)}</div>
-          <div class="bet-name">${p.name} <span style="color:var(--muted);font-weight:400;font-size:11px">(${p.total} pts)</span></div>
+          <div class="bet-name">${p.name} <span style="color:var(--muted);font-weight:400;font-size:11px">(${etaPts} pts)</span></div>
           <div class="bet-no-pred">sem aposta</div>
         </div>`;
       return;
@@ -1824,7 +2037,7 @@ function buildBetItemsHtml(bets) {
     html += `
       <div class="bet-item ${cls}">
         <div class="bet-avatar" style="background:${p.color}">${getInitials(p.name)}</div>
-        <div class="bet-name">${p.name} <span style="color:var(--muted);font-weight:400;font-size:11px">(${p.total} pts)</span></div>
+        <div class="bet-name">${p.name} <span style="color:var(--muted);font-weight:400;font-size:11px">(${etaPts} pts)</span></div>
         <div class="bet-score">${scoreA} – ${scoreB}</div>
         ${ptsHtml}
       </div>`;
@@ -1884,7 +2097,7 @@ function filterModalBets(vote) {
   }
 
   const listEl = document.getElementById('modal-bet-list');
-  if (listEl) listEl.innerHTML = buildBetItemsHtml(filtered);
+  if (listEl) listEl.innerHTML = buildBetItemsHtml(filtered, window._modalEtapaPtsMap);
 }
 
 function closeGameModal(e) {
