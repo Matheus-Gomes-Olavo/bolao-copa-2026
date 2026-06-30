@@ -1195,6 +1195,35 @@ function fetchSheet(id, sheetName = 'Fase de Grupos') {
 }
 
 // ============================================================
+// FETCH COM CONTROLE DE CONCORRÊNCIA
+// ============================================================
+// Evita disparar N×fases requests simultâneos (GAS tem rate-limit)
+// e faz retry automático em caso de falha transitória.
+async function fetchAllConcurrent(tasks, concurrency = 8) {
+  const results = new Array(tasks.length).fill(null);
+  let idx = 0;
+  async function worker() {
+    while (idx < tasks.length) {
+      const i = idx++;
+      results[i] = await tasks[i]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker));
+  return results;
+}
+
+async function fetchSheetWithRetry(id, sheetName, retries = 2, delayMs = 1200) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fetchSheet(id, sheetName);
+    } catch {
+      if (attempt === retries) return null;
+      await new Promise(r => setTimeout(r, delayMs * (attempt + 1)));
+    }
+  }
+}
+
+// ============================================================
 // STATE
 // ============================================================
 let state = null;
@@ -1226,13 +1255,15 @@ async function loadData() {
     const allGabGames = [...gabGames, ...gabKoGames.flat()];
 
     // ── Stage 2: apostas dos participantes (grupos + fases ativas) ──
+    // Concorrência limitada a 8 + retry automático para evitar rate-limit do GAS
     const N = PARTICIPANTS_CONFIG.length;
-    const allPartResults = await Promise.all([
-      ...PARTICIPANTS_CONFIG.map(p => fetchSheet(p.id, 'Fase de Grupos').catch(() => null)),
+    const partTasks = [
+      ...PARTICIPANTS_CONFIG.map(p => () => fetchSheetWithRetry(p.id, 'Fase de Grupos')),
       ...activeKoPhases.flatMap(phase =>
-        PARTICIPANTS_CONFIG.map(p => fetchSheet(p.id, phase.sheetName).catch(() => null))
+        PARTICIPANTS_CONFIG.map(p => () => fetchSheetWithRetry(p.id, phase.sheetName))
       ),
-    ]);
+    ];
+    const allPartResults = await fetchAllConcurrent(partTasks, 8);
 
     const partGrpRows = allPartResults.slice(0, N);
     const partKoRowsByPhase = activeKoPhases.map((_, ki) =>
@@ -1374,8 +1405,21 @@ function renderRanking() {
     const startCollapsed = ei !== 1;
     const rows = participants.map(p => {
       const pts = etapa.phaseKeys.reduce((s, k) => s + (p.phaseBreakdown?.[k] || 0), 0);
-      return { p, pts };
-    }).sort((a, b) => b.pts - a.pts);
+      const etapaDetails = (p.details || []).filter(d => {
+        const pk = d.real.phase || 'grupos';
+        return etapa.phaseKeys.includes(pk) && d.pts !== null;
+      });
+      const er1 = etapaDetails.filter(d => d.rule === 1).length;
+      const er2 = etapaDetails.filter(d => d.rule === 2).length;
+      const er3 = etapaDetails.filter(d => d.rule === 3).length;
+      return { p, pts, er1, er2, er3 };
+    }).sort((a, b) => {
+      if (b.pts !== a.pts) return b.pts - a.pts;
+      if (b.er1 !== a.er1) return b.er1 - a.er1;
+      if (b.er2 !== a.er2) return b.er2 - a.er2;
+      if (b.er3 !== a.er3) return b.er3 - a.er3;
+      return a.p.name.localeCompare(b.p.name, 'pt-BR', { sensitivity: 'base' });
+    });
 
     const hasPoints = rows.some(r => r.pts > 0);
     const bodyId = `etapa-body-${ei}`;
@@ -1396,14 +1440,7 @@ function renderRanking() {
       rows.forEach((r, rank) => {
         const posClass = rank === 0 ? 'gold' : rank === 1 ? 'silver' : rank === 2 ? 'bronze' : '';
         const posStr = rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `${rank + 1}º`;
-        // Computa r1/r2/r3 apenas para os jogos desta etapa
-        const etapaDetails = (r.p.details || []).filter(d => {
-          const pk = d.real.phase || 'grupos';
-          return etapa.phaseKeys.includes(pk) && d.pts !== null;
-        });
-        const er1 = etapaDetails.filter(d => d.rule === 1).length;
-        const er2 = etapaDetails.filter(d => d.rule === 2).length;
-        const er3 = etapaDetails.filter(d => d.rule === 3).length;
+        const { er1, er2, er3 } = r;
         const statsHtml = (er1 + er2 + er3) > 0 ? `
           <div class="etapa-stats">
             <span class="etapa-stat-chip" title="Placares exatos">🎯 ${er1}</span>
