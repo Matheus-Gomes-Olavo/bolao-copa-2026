@@ -677,6 +677,8 @@
 
     .game-card { cursor: pointer; transition: border-color 0.15s, background 0.15s; }
     .game-card:active { background: var(--card2); border-color: var(--green-light); }
+    .game-card.locked { cursor: default; opacity: 0.85; }
+    .game-card.locked:active { background: var(--card); border-color: var(--border); }
 
     /* ── EMPTY / ERROR ── */
     .empty-state {
@@ -1007,18 +1009,13 @@ const AVATAR_COLORS = [
 // ============================================================
 // ESTRUTURA DAS PLANILHAS
 // ============================================================
-const BLOCK_CONFIGS = [
-  { groups: ['A','B','C','D'], rowStart: 3  },
-  { groups: ['E','F','G','H'], rowStart: 13 },
-  { groups: ['I','J','K','L'], rowStart: 23 },
-];
 const GROUP_COLS = [2, 9, 16, 23];
 
 // ============================================================
 // ETAPAS DO BOLÃO (agrupamento para ranking próprio)
+// Fase de grupos retirada do app — mantidas as duas etapas eliminatórias.
 // ============================================================
 const ETAPAS = [
-  { id: 'grupos',    label: 'Fase de Grupo',         phaseKeys: ['grupos'] },
   { id: 'avos',      label: '16-Avos e Oitavas',     phaseKeys: ['16avos', 'oitavas'] },
   { id: 'quartas_f', label: 'Quartas, Semi e Final',  phaseKeys: ['quartas', 'semis', 'final'] },
 ];
@@ -1034,49 +1031,17 @@ const KNOCKOUT_PHASES = [
   { id: 'final',   label: 'Final',     sheetName: 'Finais',           isFinal: true  },
 ];
 
+// Fases cujas apostas individuais dos participantes já podem ser exibidas
+// (modal de cada jogo em "Jogos" e detalhe por participante em "Participantes").
+// Os jogos e o placar real continuam visíveis normalmente; isso controla
+// apenas a visualização do palpite de cada participante. Libere manualmente
+// adicionando o id da fase aqui conforme forem sendo abertas.
+const APOSTAS_VISIVEIS = ['16avos'];
+
 // ============================================================
 // FETCH VIA GOOGLE APPS SCRIPT (sem CORS, funciona de qualquer origem)
 // ============================================================
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx8NcGf9zZuLpKs2971LSf9RP8ZdN120zR32IfgavLFWqFfF1WsPyM-ILum6pLS3AJZ/exec';
-
-// ============================================================
-// EXTRAÇÃO DE JOGOS
-// ============================================================
-function extractGames(rows) {
-  const games = [];
-  for (const block of BLOCK_CONFIGS) {
-    for (let gi = 0; gi < 4; gi++) {
-      const group = block.groups[gi];
-      const gc = GROUP_COLS[gi];
-      for (let round = 0; round < 3; round++) {
-        for (let gIdx = 0; gIdx < 2; gIdx++) {
-          // Cada rodada ocupa 3 linhas: jogo1, jogo2, vazia
-          const rowIdx = block.rowStart + 1 + round * 3 + gIdx;
-          const row = rows[rowIdx] || [];
-          const cell = v => (v === null || v === undefined || v === '') ? '' : String(v).trim();
-          const teamA = cell(row[gc+1]);
-          const teamB = cell(row[gc+4]);
-          if (!teamA || !teamB) continue;
-          const s1 = cell(row[gc+2]);
-          const s2 = cell(row[gc+3]);
-          const scoreA = s1 !== '' && !isNaN(+s1) ? +s1 : null;
-          const scoreB = s2 !== '' && !isNaN(+s2) ? +s2 : null;
-          games.push({
-            id: `${group}-R${round+1}-G${gIdx+1}`,
-            group, round: round+1, gIdx,
-            teamA, teamB, scoreA, scoreB,
-            played: scoreA !== null && scoreB !== null,
-            isBrazil: teamA === 'Brasil' || teamB === 'Brasil',
-            isFinal: false,
-            phase: 'grupos',
-            phaseLabel: 'Fase de Grupos',
-          });
-        }
-      }
-    }
-  }
-  return games;
-}
 
 // ============================================================
 // EXTRAÇÃO DE JOGOS — FASE ELIMINATÓRIA
@@ -1235,48 +1200,40 @@ async function loadData() {
   document.getElementById('ranking-content').style.display = 'none';
 
   try {
-    // ── Stage 1a: gabarito da fase de grupos (crítico) ───────
-    const gabGrpRows = await fetchSheet(GABARITO_ID, 'Fase de Grupos');
-
-    // ── Stage 1b: gabarito das fases eliminatórias (erros tolerados) ──
+    // ── Stage 1: gabarito das fases eliminatórias ──────────────
+    // Fase de grupos retirada do app (encerrada) — buscamos direto as
+    // fases eliminatórias, o que também deixa o carregamento mais rápido.
     const gabKoRowsArr = await Promise.all(
       KNOCKOUT_PHASES.map(p =>
         fetchSheet(GABARITO_ID, p.sheetName).catch(() => null)
       )
     );
 
-    const gabGames = extractGames(gabGrpRows);
     const gabKoGames = KNOCKOUT_PHASES.map((phase, i) =>
       gabKoRowsArr[i] ? extractKnockoutGames(gabKoRowsArr[i], phase) : []
     );
 
     // Só busca participantes das fases que têm jogos cadastrados
     const activeKoPhases = KNOCKOUT_PHASES.filter((_, i) => gabKoGames[i].length > 0);
-    const allGabGames = [...gabGames, ...gabKoGames.flat()];
+    const allGabGames = gabKoGames.flat();
 
-    // ── Stage 2: apostas dos participantes (grupos + fases ativas) ──
+    // ── Stage 2: apostas dos participantes (fases ativas) ──────
     // Concorrência limitada a 8 + retry automático para evitar rate-limit do GAS
     const N = PARTICIPANTS_CONFIG.length;
     const partTasks = [
-      ...PARTICIPANTS_CONFIG.map(p => () => fetchSheetWithRetry(p.id, 'Fase de Grupos')),
       ...activeKoPhases.flatMap(phase =>
         PARTICIPANTS_CONFIG.map(p => () => fetchSheetWithRetry(p.id, phase.sheetName))
       ),
     ];
     const allPartResults = await fetchAllConcurrent(partTasks, 8);
 
-    const partGrpRows = allPartResults.slice(0, N);
     const partKoRowsByPhase = activeKoPhases.map((_, ki) =>
-      allPartResults.slice(N + ki * N, N + (ki + 1) * N)
+      allPartResults.slice(ki * N, (ki + 1) * N)
     );
 
     // ── Pontuação ──────────────────────────────────────────────
     const participants = PARTICIPANTS_CONFIG.map((cfg, pi) => {
       const color = AVATAR_COLORS[pi % AVATAR_COLORS.length];
-      if (!partGrpRows[pi]) {
-        return { ...cfg, color, total: 0, brazilPts: 0, r1: 0, r2: 0, r3: 0, details: [], phaseBreakdown: {}, avosPts: 0, error: true };
-      }
-      const predGrpGames = extractGames(partGrpRows[pi]);
       const predKoGames = activeKoPhases.flatMap((phase, ki) => {
         const rows = partKoRowsByPhase[ki][pi];
         const gabPhaseGames = gabKoGames[KNOCKOUT_PHASES.indexOf(phase)];
@@ -1285,8 +1242,7 @@ async function loadData() {
           ? extractKnockoutGames(rows, phase)
           : gabPhaseGames.map(g => ({ ...g, scoreA: null, scoreB: null }));
       });
-      const allPredGames = [...predGrpGames, ...predKoGames];
-      const score = pontuarParticipante(allGabGames, allPredGames);
+      const score = pontuarParticipante(allGabGames, predKoGames);
       const AVOS_KEYS = ['16avos', 'oitavas'];
       const avosPts = AVOS_KEYS.reduce((s, k) => s + (score.phaseBreakdown[k] || 0), 0);
       return { ...cfg, color, ...score, avosPts };
@@ -1312,14 +1268,14 @@ async function loadData() {
     console.log('[BOLÃO] avosPts por participante:', participantsByAvos.map(p => `${p.name}=${p.avosPts}`).join(', '));
 
     state = {
-      gabGames, gabKoGames, allGabGames,
+      gabKoGames, allGabGames,
       participants, participantsByAvos, playedCount,
       total: allGabGames.length,
       prevRanking, activeKoPhases,
     };
 
     renderRanking();
-    renderJogos(activeFilter);
+    renderJogos();
     renderDetalhes();
     renderStats();
 
@@ -1327,7 +1283,7 @@ async function loadData() {
     const hm = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
     const currentPhaseLabel = activeKoPhases.length > 0
       ? activeKoPhases[activeKoPhases.length - 1].label
-      : 'Fase de Grupos';
+      : 'Aguardando início';
     document.getElementById('subtitle-text').textContent = `Atualizado às ${hm} · ${currentPhaseLabel}`;
 
   } catch (err) { // eslint-disable-line
@@ -1400,9 +1356,9 @@ function renderRanking() {
     </div>
   `;
 
-  // Etapa 1 (índice 0) = fechada, Etapa 2 (índice 1) = aberta, Etapa 3 (índice 2) = fechada
+  // Etapa 16-Avos/Oitavas (índice 0) = aberta por padrão; demais = fechadas
   ETAPAS.forEach((etapa, ei) => {
-    const startCollapsed = ei !== 1;
+    const startCollapsed = ei !== 0;
     const rows = participants.map(p => {
       const pts = etapa.phaseKeys.reduce((s, k) => s + (p.phaseBreakdown?.[k] || 0), 0);
       const etapaDetails = (p.details || []).filter(d => {
@@ -1479,11 +1435,9 @@ function toggleEtapa(ei) {
 // RENDER — JOGOS
 // ============================================================
 let activePhase  = '16avos';
-let activeFilter = 'Todos';
 
 function setPhase(phase) {
   activePhase = phase;
-  if (phase !== 'grupos') activeFilter = 'Todos';
   renderJogos();
 }
 
@@ -1511,8 +1465,14 @@ function buildGameCardHtml(game, participants) {
   const finalBadge = game.isFinal ? ' · ×2 Final' : '';
   const brazilBadge = game.isBrazil ? ' · 🇧🇷 ×2' : '';
 
+  // Apostas individuais só ficam visíveis nas fases liberadas em APOSTAS_VISIVEIS
+  const apostasLiberadas = !game.phase || game.phase === 'grupos' || APOSTAS_VISIVEIS.includes(game.phase);
+  const footerHint = apostasLiberadas
+    ? `<div style="text-align:right;font-size:10px;color:var(--muted);margin-top:6px">👆 ver apostas</div>`
+    : `<div style="text-align:right;font-size:10px;color:var(--muted);margin-top:6px">🔒 Apostas ainda não liberadas</div>`;
+
   return `
-    <div class="game-card" onclick="showGameModal('${game.id}')">
+    <div class="game-card${apostasLiberadas ? '' : ' locked'}"${apostasLiberadas ? ` onclick="showGameModal('${game.id}')"` : ''}>
       <div class="game-meta">
         <span class="badge">${badgeLeft}</span>
         <span class="badge ${game.played ? 'played' : ''}">${game.played ? '✅ Encerrado' : '⏳ Aguardando'}${brazilBadge}${finalBadge}</span>
@@ -1530,65 +1490,45 @@ function buildGameCardHtml(game, participants) {
           <span class="game-stat">❌ Errou: ${errou}</span>
         </div>
       ` : ''}
-      <div style="text-align:right;font-size:10px;color:var(--muted);margin-top:6px">👆 ver apostas</div>
+      ${footerHint}
     </div>
   `;
 }
 
-function renderJogos(filter) {
+function renderJogos() {
   if (!state) return;
-  if (filter !== undefined) activeFilter = filter;
 
-  const { gabGames, gabKoGames, participants } = state;
+  const { gabKoGames, participants } = state;
 
-  // Monta abas de fase (só mostra fases com jogos)
-  const phaseTabs = [{ id: 'grupos', label: '🏟️ Grupos' }];
+  // Monta abas de fase (só mostra fases com jogos cadastrados).
+  // Fase de grupos foi retirada do app — só restam as fases eliminatórias.
+  const phaseTabs = [];
   KNOCKOUT_PHASES.forEach((phase, i) => {
     if (gabKoGames[i] && gabKoGames[i].length > 0)
       phaseTabs.push({ id: phase.id, label: phase.label });
   });
 
   // Garante que activePhase é válido
-  if (!phaseTabs.find(t => t.id === activePhase)) activePhase = 'grupos';
-
-  let html = '<div class="phase-tabs">';
-  for (const tab of phaseTabs) {
-    html += `<button class="phase-tab-btn ${activePhase === tab.id ? 'active' : ''}" onclick="setPhase('${tab.id}')">${tab.label}</button>`;
+  if (!phaseTabs.find(t => t.id === activePhase)) {
+    activePhase = phaseTabs[0]?.id || '16avos';
   }
-  html += '</div>';
 
-  if (activePhase === 'grupos') {
-    const groups = ['Todos','A','B','C','D','E','F','G','H','I','J','K','L'];
-    const filtered = activeFilter === 'Todos' ? gabGames : gabGames.filter(g => g.group === activeFilter);
-
-    html += '<div class="group-filter">';
-    for (const g of groups) {
-      html += `<button class="filter-btn ${activeFilter === g ? 'active' : ''}" onclick="renderJogos('${g}')">${g}</button>`;
+  let html = '';
+  if (phaseTabs.length > 1) {
+    html += '<div class="phase-tabs">';
+    for (const tab of phaseTabs) {
+      html += `<button class="phase-tab-btn ${activePhase === tab.id ? 'active' : ''}" onclick="setPhase('${tab.id}')">${tab.label}</button>`;
     }
     html += '</div>';
+  }
 
-    if (!filtered.length) {
-      html += '<div class="empty-state"><div class="icon">⚽</div><p>Nenhum jogo encontrado</p></div>';
-    } else {
-      let lastGroup = null;
-      for (const game of filtered) {
-        if (activeFilter === 'Todos' && game.group !== lastGroup) {
-          html += `<div class="section-label">Grupo ${game.group}</div>`;
-          lastGroup = game.group;
-        }
-        html += buildGameCardHtml(game, participants);
-      }
-    }
+  const phaseIdx = KNOCKOUT_PHASES.findIndex(p => p.id === activePhase);
+  const koGames = gabKoGames[phaseIdx] || [];
+  if (!koGames.length) {
+    html += '<div class="empty-state"><div class="icon">⏳</div><p>Nenhum jogo ainda nesta fase</p></div>';
   } else {
-    // Fase eliminatória
-    const phaseIdx = KNOCKOUT_PHASES.findIndex(p => p.id === activePhase);
-    const koGames = gabKoGames[phaseIdx] || [];
-    if (!koGames.length) {
-      html += '<div class="empty-state"><div class="icon">⏳</div><p>Nenhum jogo ainda nesta fase</p></div>';
-    } else {
-      for (const game of koGames) {
-        html += buildGameCardHtml(game, participants);
-      }
+    for (const game of koGames) {
+      html += buildGameCardHtml(game, participants);
     }
   }
 
@@ -1671,7 +1611,7 @@ function renderParticipantDetail(id) {
   let html = '';
 
   ETAPAS.forEach((etapa, ei) => {
-    const startCollapsed = ei !== 1;
+    const startCollapsed = ei !== 0;
     const bodyId = `det-etapa-body-${ei}`;
     const headId = `det-etapa-head-${ei}`;
 
@@ -1709,7 +1649,11 @@ function renderParticipantDetail(id) {
         const phaseDets = etapaDets.filter(d => (d.real.phase || 'grupos') === pk);
         if (phaseDets.length === 0) return;
         html += `<div class="section-label">${phaseLabel[pk] || pk}</div>`;
-        phaseDets.forEach(d => { html += predCardHtml(d); });
+        if (APOSTAS_VISIVEIS.includes(pk)) {
+          phaseDets.forEach(d => { html += predCardHtml(d); });
+        } else {
+          html += `<div class="etapa-inactive">🔒 Apostas ainda não liberadas para esta fase</div>`;
+        }
       });
     }
 
@@ -1925,6 +1869,11 @@ function showGameModal(gameId) {
   const game = state.allGabGames.find(g => g.id === gameId);
   if (!game) return;
 
+  // Trava de segurança: mesmo que a função seja chamada diretamente, não
+  // exibe apostas de fases ainda não liberadas em APOSTAS_VISIVEIS.
+  const apostasLiberadas = !game.phase || game.phase === 'grupos' || APOSTAS_VISIVEIS.includes(game.phase);
+  if (!apostasLiberadas) return;
+
   // Apostas em ordem pré-calculada por 16-avos + oitavas (state.participantsByAvos)
   const bets = state.participantsByAvos.map(p => ({
     p, det: p.details.find(d => d.real.id === gameId),
@@ -1991,14 +1940,20 @@ function showGameModal(gameId) {
     ? topScore[0].replace('-', ' × ') + ` <span style="color:var(--muted);font-size:11px">(${topScore[1]}×)</span>`
     : '—';
 
+  const isKoGame = game.phase && game.phase !== 'grupos';
+  const modalBadgeLeft = isKoGame
+    ? `${game.phaseLabel} · Jogo ${game.matchNum}`
+    : `Grupo ${game.group} · Rodada ${game.round}`;
+  const modalFinalBadge = game.isFinal ? ' · ×2 Final' : '';
+
   const html = `
     <div class="modal-overlay" onclick="closeGameModal(event)">
       <div class="modal-sheet" onclick="event.stopPropagation()">
         <div class="modal-handle"></div>
         <div class="modal-header">
           <div class="modal-badge-row">
-            <span class="badge">Grupo ${game.group} · Rodada ${game.round}</span>
-            <span class="badge ${game.played ? 'played' : ''}">${game.played ? '✅ Encerrado' : '⏳ Aguardando'}${game.isBrazil ? ' · 🇧🇷' : ''}</span>
+            <span class="badge">${modalBadgeLeft}</span>
+            <span class="badge ${game.played ? 'played' : ''}">${game.played ? '✅ Encerrado' : '⏳ Aguardando'}${game.isBrazil ? ' · 🇧🇷' : ''}${modalFinalBadge}</span>
           </div>
           <div class="modal-match">
             <span class="modal-team">${game.teamA}</span>
