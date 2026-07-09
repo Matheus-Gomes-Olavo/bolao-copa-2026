@@ -1013,10 +1013,10 @@ const GROUP_COLS = [2, 9, 16, 23];
 
 // ============================================================
 // ETAPAS DO BOLÃO (agrupamento para ranking próprio)
-// Fase de grupos retirada do app — mantidas as duas etapas eliminatórias.
+// Fase de grupos, 16-avos e oitavas retiradas do app — mantida apenas a
+// etapa final, englobando quartas, semis e final.
 // ============================================================
 const ETAPAS = [
-  { id: 'avos',      label: '16-Avos e Oitavas',     phaseKeys: ['16avos', 'oitavas'] },
   { id: 'quartas_f', label: 'Quartas, Semi e Final',  phaseKeys: ['quartas', 'semis', 'final'] },
 ];
 
@@ -1024,19 +1024,22 @@ const ETAPAS = [
 // FASES ELIMINATÓRIAS
 // ============================================================
 const KNOCKOUT_PHASES = [
-  { id: '16avos',  label: '16-Avos',   sheetName: '16-Avos de Final', isFinal: false },
-  { id: 'oitavas', label: 'Oitavas',   sheetName: 'Oitavas de Final', isFinal: false },
   { id: 'quartas', label: 'Quartas',   sheetName: 'Quartas de Final', isFinal: false },
   { id: 'semis',   label: 'Semifinais',sheetName: 'Semifinais',       isFinal: false },
   { id: 'final',   label: 'Final',     sheetName: 'Finais',           isFinal: true  },
 ];
+
+// Rótulos completos das fases (usado em sub-seções de Participantes e Análise)
+const PHASE_LABELS = {
+  quartas: 'Quartas de Final', semis: 'Semifinais', final: 'Final',
+};
 
 // Fases cujas apostas individuais dos participantes já podem ser exibidas
 // (modal de cada jogo em "Jogos" e detalhe por participante em "Participantes").
 // Os jogos e o placar real continuam visíveis normalmente; isso controla
 // apenas a visualização do palpite de cada participante. Libere manualmente
 // adicionando o id da fase aqui conforme forem sendo abertas.
-const APOSTAS_VISIVEIS = ['16avos', 'oitavas'];
+const APOSTAS_VISIVEIS = ['quartas'];
 
 // ============================================================
 // FETCH VIA GOOGLE APPS SCRIPT (sem CORS, funciona de qualquer origem)
@@ -1243,8 +1246,9 @@ async function loadData() {
           : gabPhaseGames.map(g => ({ ...g, scoreA: null, scoreB: null }));
       });
       const score = pontuarParticipante(allGabGames, predKoGames);
-      const AVOS_KEYS = ['16avos', 'oitavas'];
-      const avosPts = AVOS_KEYS.reduce((s, k) => s + (score.phaseBreakdown[k] || 0), 0);
+      // Pontos nas fases com apostas atualmente visíveis (usado para ordenar
+      // participantes no modal de apostas de cada jogo).
+      const avosPts = APOSTAS_VISIVEIS.reduce((s, k) => s + (score.phaseBreakdown[k] || 0), 0);
       return { ...cfg, color, ...score, avosPts };
     });
 
@@ -1263,7 +1267,7 @@ async function loadData() {
 
     const playedCount = allGabGames.filter(g => g.played).length;
 
-    // Lista pré-ordenada por 16-avos + oitavas (usada no modal)
+    // Lista pré-ordenada pelas fases com apostas visíveis (usada no modal)
     const participantsByAvos = participants.slice().sort((a, b) => b.avosPts - a.avosPts);
     console.log('[BOLÃO] avosPts por participante:', participantsByAvos.map(p => `${p.name}=${p.avosPts}`).join(', '));
 
@@ -1356,7 +1360,7 @@ function renderRanking() {
     </div>
   `;
 
-  // Etapa 16-Avos/Oitavas (índice 0) = aberta por padrão; demais = fechadas
+  // Primeira etapa (índice 0) = aberta por padrão; demais = fechadas
   ETAPAS.forEach((etapa, ei) => {
     const startCollapsed = ei !== 0;
     const rows = participants.map(p => {
@@ -1434,7 +1438,7 @@ function toggleEtapa(ei) {
 // ============================================================
 // RENDER — JOGOS
 // ============================================================
-let activePhase  = '16avos';
+let activePhase  = 'quartas';
 
 function setPhase(phase) {
   activePhase = phase;
@@ -1510,7 +1514,7 @@ function renderJogos() {
 
   // Garante que activePhase é válido
   if (!phaseTabs.find(t => t.id === activePhase)) {
-    activePhase = phaseTabs[0]?.id || '16avos';
+    activePhase = phaseTabs[0]?.id || 'quartas';
   }
 
   let html = '';
@@ -1602,11 +1606,7 @@ function renderParticipantDetail(id) {
   if (!p) return;
 
   // Mapa phase → label mais legível para sub-seções
-  const phaseLabel = {
-    grupos: null, // agrupado por grupo, sem sub-label por fase
-    '16avos': '16-Avos de Final', oitavas: 'Oitavas de Final',
-    quartas: 'Quartas de Final', semis: 'Semifinais', final: 'Final',
-  };
+  const phaseLabel = PHASE_LABELS;
 
   let html = '';
 
@@ -1690,15 +1690,29 @@ function renderStats() {
 
   let html = '';
 
-  // ── ANÁLISES 16-AVOS ───────────────────────────────────────
-  const avosGames = state.allGabGames.filter(g => g.phase === '16avos');
+  // ── ANÁLISES POR FASE ──────────────────────────────────────
+  // Gera uma seção de análise para cada fase com apostas já liberadas
+  // (APOSTAS_VISIVEIS). Hoje só quartas; semis/final entram automaticamente
+  // assim que forem adicionadas a APOSTAS_VISIVEIS.
+  for (const phaseId of APOSTAS_VISIVEIS) {
+    html += buildPhaseAnalysisHtml(phaseId, valid);
+  }
+
+  document.getElementById('stats-content').innerHTML = html;
+}
+
+function buildPhaseAnalysisHtml(phaseId, valid) {
+  const phaseLabelText = PHASE_LABELS[phaseId] || phaseId;
+  const avosGames = state.allGabGames.filter(g => g.phase === phaseId);
   const avosDetails = valid.map(p => ({
     name: p.name, color: p.color,
-    dets: p.details.filter(d => d.real.phase === '16avos'),
+    dets: p.details.filter(d => d.real.phase === phaseId),
   })).filter(p => p.dets.length > 0);
 
+  let html = '';
+
   if (avosGames.length > 0 && avosDetails.length > 0) {
-    html += `<div style="margin-top:28px;padding:0 0 4px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px">Análise — 16-Avos de Final</div>`;
+    html += `<div style="margin-top:28px;padding:0 0 4px;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px">Análise — ${phaseLabelText}</div>`;
 
     // A) Times mais apostados para avançar (vencer)
     const avosWinVotes = {};
@@ -1729,7 +1743,7 @@ function renderStats() {
       html += `</div></div>`;
     }
 
-    // B) Jogos mais controversos nos 16-avos
+    // B) Jogos mais controversos na fase
     const avosControversy = avosGames.map(g => {
       const votes = { A: 0, B: 0, D: 0 };
       avosDetails.forEach(({ dets }) => {
@@ -1749,7 +1763,7 @@ function renderStats() {
 
     if (avosControversy.length > 0) {
       html += `<div class="stats-section">
-        <div class="stats-section-title">🔥 Jogos mais divididos nos 16-Avos</div>
+        <div class="stats-section-title">🔥 Jogos mais divididos — ${phaseLabelText}</div>
         <div class="stat-row-list">`;
       avosControversy.forEach(({ game, votes, tot }) => {
         const pA = Math.round(votes.A/tot*100);
@@ -1767,7 +1781,7 @@ function renderStats() {
       html += `</div></div>`;
     }
 
-    // C) Unanimidades nos 16-avos
+    // C) Unanimidades na fase
     const avosUnanimous = avosGames.map(g => {
       const votes = { A: 0, B: 0, D: 0 };
       avosDetails.forEach(({ dets }) => {
@@ -1786,7 +1800,7 @@ function renderStats() {
 
     if (avosUnanimous.length > 0) {
       html += `<div class="stats-section">
-        <div class="stats-section-title">🤝 Apostas unânimes nos 16-Avos</div>
+        <div class="stats-section-title">🤝 Apostas unânimes — ${phaseLabelText}</div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;padding:4px 0">`;
       avosUnanimous.forEach(({ game, winner }) => {
         html += `<span class="unanimous-badge">${game.teamA} × ${game.teamB} → ${winner}</span>`;
@@ -1794,7 +1808,7 @@ function renderStats() {
       html += `</div></div>`;
     }
 
-    // D) Ranking de acertos nos 16-avos (jogos já disputados)
+    // D) Ranking de acertos na fase (jogos já disputados)
     const avosPlayedGames = avosGames.filter(g => g.played);
     if (avosPlayedGames.length > 0) {
       const avosExact = avosDetails.map(({ name, color, dets }) => {
@@ -1810,7 +1824,7 @@ function renderStats() {
 
       if (avosExact.length > 0) {
         html += `<div class="stats-section">
-          <div class="stats-section-title">🏆 Desempenho nos 16-Avos (jogados)</div>
+          <div class="stats-section-title">🏆 Desempenho — ${phaseLabelText} (jogados)</div>
           <div class="stat-row-list">`;
         avosExact.forEach((p, i) => {
           html += `<div class="stat-row">
@@ -1825,7 +1839,7 @@ function renderStats() {
       }
     }
 
-    // E) Maiores goleadas apostadas nos 16-avos
+    // E) Maiores goleadas apostadas na fase
     const avosGoleadas = [];
     avosDetails.forEach(({ name, dets }) => {
       dets.forEach(({ pred }) => {
@@ -1842,7 +1856,7 @@ function renderStats() {
     const topAvosGoleadas = avosGoleadas.sort((a,b) => b.diff - a.diff).slice(0,5);
     if (topAvosGoleadas.length > 0) {
       html += `<div class="stats-section">
-        <div class="stats-section-title">💥 Maiores goleadas apostadas nos 16-Avos</div>
+        <div class="stats-section-title">💥 Maiores goleadas apostadas — ${phaseLabelText}</div>
         <div class="stat-row-list">`;
       topAvosGoleadas.forEach((item, i) => {
         html += `<div class="stat-row">
@@ -1858,7 +1872,7 @@ function renderStats() {
     }
   }
 
-  document.getElementById('stats-content').innerHTML = html;
+  return html;
 }
 
 // ============================================================
@@ -1874,7 +1888,7 @@ function showGameModal(gameId) {
   const apostasLiberadas = !game.phase || game.phase === 'grupos' || APOSTAS_VISIVEIS.includes(game.phase);
   if (!apostasLiberadas) return;
 
-  // Apostas em ordem pré-calculada por 16-avos + oitavas (state.participantsByAvos)
+  // Apostas em ordem pré-calculada pelas fases visíveis (state.participantsByAvos)
   const bets = state.participantsByAvos.map(p => ({
     p, det: p.details.find(d => d.real.id === gameId),
   }));
@@ -1901,7 +1915,7 @@ function showGameModal(gameId) {
   const topScore = Object.entries(scoreCounts).sort((a,b) => b[1]-a[1])[0];
   const avgGoals = totalBets > 0 ? (totalGoals / totalBets).toFixed(1) : '—';
 
-  // bets já vem pré-ordenado por avosPts (16-avos + oitavas) via state.participantsByAvos
+  // bets já vem pré-ordenado por avosPts (fases visíveis) via state.participantsByAvos
 
   // ── Header ──
   const scoreBox = game.played
