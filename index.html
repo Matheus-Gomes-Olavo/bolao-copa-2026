@@ -1051,6 +1051,11 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbx8NcGf9zZuLpKs2971LSf9
 // Varre todas as linhas nas mesmas posições de coluna da fase de grupos
 // ============================================================
 function extractKnockoutGames(rows, phase) {
+  // A aba "Finais" tem um layout diferente das demais (times centralizados
+  // numa coluna que não bate com GROUP_COLS, e divide a aba com o jogo de
+  // disputa do 3º lugar) — usa extração dedicada.
+  if (phase.id === 'final') return extractFinalGame(rows, phase);
+
   const games = [];
   for (let gi = 0; gi < GROUP_COLS.length; gi++) {
     const gc = GROUP_COLS[gi];
@@ -1078,6 +1083,63 @@ function extractKnockoutGames(rows, phase) {
         isBrazil: teamA === 'Brasil' || teamB === 'Brasil',
         isFinal: phase.isFinal,
       });
+    }
+  }
+  return games;
+}
+
+// ============================================================
+// EXTRAÇÃO — ABA "FINAIS" (layout de jogo único e centralizado)
+// A aba tem o jogo de "Disputa 3º" e o jogo "FINAL" na mesma planilha, cada
+// um sob seu próprio rótulo de seção (linha com uma única célula de texto).
+// Ambos são extraídos e exibidos juntos na aba "Final" do app, mas só o
+// jogo sob o rótulo "FINAL" recebe o multiplicador ×2 — a disputa de 3º
+// lugar pontua normalmente (mesma regra das demais fases).
+// ============================================================
+function extractFinalGame(rows, phase) {
+  const games = [];
+  const cell = v => (v === null || v === undefined || v === '' || typeof v === 'object') ? '' : String(v).trim();
+  let currentLabel = '';
+
+  for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+    const row = rows[rowIdx] || [];
+    const nonEmpty = row.map(cell).filter(v => v !== '');
+
+    // Linha de rótulo de seção (ex: "FINAL", "Disputa 3º"): uma única célula
+    // de texto preenchida na linha inteira.
+    if (nonEmpty.length === 1 && isNaN(+nonEmpty[0])) {
+      currentLabel = nonEmpty[0].toUpperCase();
+      continue;
+    }
+
+    const isFinalSection      = currentLabel === 'FINAL';
+    const isThirdPlaceSection = currentLabel.includes('3') || currentLabel.includes('TERCEIRO');
+    if (!isFinalSection && !isThirdPlaceSection) continue;
+
+    for (let c = 0; c <= row.length - 4; c++) {
+      const teamA = cell(row[c]);
+      const teamB = cell(row[c + 3]);
+      if (!teamA || !teamB || teamA === teamB || !isNaN(+teamA) || !isNaN(+teamB)) continue;
+
+      const s1 = cell(row[c + 1]);
+      const s2 = cell(row[c + 2]);
+      const scoreA = s1 !== '' && !isNaN(+s1) ? +s1 : null;
+      const scoreB = s2 !== '' && !isNaN(+s2) ? +s2 : null;
+      games.push({
+        id: `${phase.id}|${[teamA, teamB].sort().join('|')}`,
+        phase: phase.id,
+        phaseLabel: isThirdPlaceSection ? 'Disputa 3º Lugar' : phase.label,
+        matchNum: games.length + 1,
+        group: null,
+        round: null,
+        teamA, teamB, scoreA, scoreB,
+        played: scoreA !== null && scoreB !== null,
+        isBrazil: teamA === 'Brasil' || teamB === 'Brasil',
+        // Só o jogo da FINAL leva o bônus ×2; a disputa de 3º lugar pontua normal.
+        isFinal: isThirdPlaceSection ? false : phase.isFinal,
+        isThirdPlace: isThirdPlaceSection,
+      });
+      c += 3; // pula as colunas já consumidas por este jogo
     }
   }
   return games;
